@@ -1,0 +1,294 @@
+// Link: https://web.unica.it/unica/protected/292827/0/def/ref/MAT271841/
+//
+// Esempio:
+// x = 1
+// y = 2
+// z = 3
+// output = 4
+//
+.constant
+	OBJREF 0x40
+	endline 0x3b
+.end-constant
+
+.main
+    .var
+        x
+        y
+        z
+        a
+    .end-var
+
+    LDC_W OBJREF
+    INVOKEVIRTUAL input
+    ISTORE x
+
+    LDC_W OBJREF
+    INVOKEVIRTUAL input
+    ISTORE y
+
+    LDC_W OBJREF
+    INVOKEVIRTUAL input
+    ISTORE z
+
+    LDC_W OBJREF
+    ILOAD x
+    ILOAD y
+    IADD
+    ILOAD y
+    ILOAD z
+    INVOKEVIRTUAL fun1
+    ISTORE a
+
+    LDC_W OBJREF
+    ILOAD a
+    LDC_W OBJREF
+    ILOAD x
+    ILOAD z
+    IADD
+    INVOKEVIRTUAL fun2
+    IADD
+    INVOKEVIRTUAL print
+
+    HALT
+.end-main
+
+.method fun1(a, b, c)
+    .var
+        i
+    .end-var
+
+    while:
+        ILOAD c
+        ILOAD b
+        ISUB
+        DUP
+        IFLT end-while
+        IFEQ end-while
+
+        ILOAD b
+        ILOAD a
+        ISUB
+        DUP
+        IFEQ else
+        IFLT else
+
+        LDC_W OBJREF
+        ILOAD b
+        INVOKEVIRTUAL fun2
+        ISTORE c
+
+        GOTO end-if
+    else:
+        ILOAD c
+        ISTORE i
+
+    for:
+        ILOAD i
+        BIPUSH 2
+        ISUB
+        DUP
+        IFLT end-for
+        IFEQ end-for
+
+        ILOAD b
+        ILOAD c
+        ISUB
+        ISTORE c
+
+        IINC i -1
+
+        GOTO for
+    end-for:
+    end-if:
+        GOTO while
+    end-while:
+
+    ILOAD a
+    ILOAD c
+    IADD
+    IRETURN
+.end-method
+
+.method fun2(b)
+    while:
+        LDC_W OBJREF
+        ILOAD b
+        BIPUSH 10
+        INVOKEVIRTUAL mod
+        BIPUSH 5
+        ISUB
+        DUP
+        IFLT end-while
+        IFEQ end-while
+        IINC b -1
+        GOTO while
+
+    end-while:
+        ILOAD b
+        BIPUSH 2
+        ISUB
+        DUP
+        IFEQ end-if
+        IFLT end-if
+
+        IINC b -1
+
+        LDC_W OBJREF
+        ILOAD b
+        BIPUSH 2
+        ISUB
+        INVOKEVIRTUAL fun2
+        IRETURN
+
+    end-if:
+        ILOAD b
+        DUP
+        IADD
+        IRETURN
+.end-method
+
+.method mul(i, j)
+    ILOAD j
+    IFEQ zero
+    IINC j  -1
+    ILOAD i
+    IFEQ zero
+    LDC_W OBJREF
+    ILOAD i
+    ILOAD j
+    INVOKEVIRTUAL mul
+    ILOAD i
+	IADD
+	GOTO fine
+zero:
+	BIPUSH 0x0
+fine:
+	IRETURN
+.end-method
+
+.method mod (a, b)
+	ILOAD a
+	IFEQ stop
+	ILOAD a
+	ILOAD b
+	ISUB
+	IFLT stop
+	LDC_W OBJREF
+	ILOAD a
+	ILOAD b
+	ISUB
+	ILOAD b
+	INVOKEVIRTUAL mod
+	GOTO fine
+stop:
+	ILOAD a
+fine:
+	IRETURN
+.end-method
+
+.method div (a, b)
+	ILOAD a
+	ILOAD b
+	ISUB
+	IFLT stop
+	LDC_W OBJREF
+	ILOAD a
+	ILOAD b
+	ISUB
+	ILOAD b
+	INVOKEVIRTUAL div
+	BIPUSH 1
+	IADD
+	GOTO fine
+stop:
+	BIPUSH 0x0
+fine:
+	IRETURN
+.end-method
+
+.method input()
+	.var
+		num
+	.end-var
+
+	BIPUSH 0x0
+	ISTORE num
+
+loop:
+	IN
+	DUP
+
+	LDC_W ENDLINE
+	ISUB
+	IFEQ stop
+
+	BIPUSH 0x30
+	ISUB
+
+	LDC_W OBJREF
+	ILOAD num
+	BIPUSH 10
+	INVOKEVIRTUAL mul
+
+	IADD
+	ISTORE num
+	GOTO loop
+
+stop:
+	ILOAD num
+	IRETURN
+
+.end-method
+
+
+.method print(x)
+	ILOAD x
+	IFEQ printz
+
+	LDC_W OBJREF
+	ILOAD x
+	INVOKEVIRTUAL print_digits
+	GOTO end
+printz:
+	BIPUSH 0x30
+	OUT
+end:
+
+	BIPUSH 0
+	IRETURN
+.end-method
+
+.method print_digits(x)
+	.var
+		char
+	.end-var
+
+	ILOAD x
+	IFEQ end
+
+	LDC_W OBJREF
+	ILOAD x
+	BIPUSH 10
+	INVOKEVIRTUAL mod
+
+	BIPUSH 0x30
+	IADD
+	ISTORE char
+
+	LDC_W OBJREF
+	ILOAD x
+	BIPUSH 10
+	INVOKEVIRTUAL div
+
+	LDC_W OBJREF
+	SWAP
+	INVOKEVIRTUAL print_digits
+
+	ILOAD char
+	OUT
+
+end:
+	BIPUSH 0
+	IRETURN
+.end-method
