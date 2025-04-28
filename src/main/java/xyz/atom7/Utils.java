@@ -1,10 +1,12 @@
 package xyz.atom7;
 
 import org.jetbrains.annotations.Nullable;
+import xyz.atom7.api.tracer.Tracer;
 
 public class Utils
 {
     public static boolean DEBUG = false;
+    public static Tracer<?, ?, ?> TRACER;
 
     /**
      * Escapes special characters in strings to display them as literals in error messages

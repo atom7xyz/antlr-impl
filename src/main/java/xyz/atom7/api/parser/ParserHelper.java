@@ -2,12 +2,11 @@ package xyz.atom7.api.parser;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import xyz.atom7.parser.IJVMParser;
 
 import java.io.IOException;
 import java.nio.file.Paths;
 
-public abstract class ParserHelper<T extends ParseResult<IJVMParser.ProgramContext>>
+public abstract class ParserHelper<T extends ParseResult<?>>
 {
     /**
      * Parse an IJVM source file

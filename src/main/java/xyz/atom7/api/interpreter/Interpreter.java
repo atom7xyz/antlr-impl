@@ -2,12 +2,11 @@ package xyz.atom7.api.interpreter;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 
 /**
@@ -16,12 +15,11 @@ import java.util.function.Consumer;
  * @param <T> The type of instruction handled by the interpreter
  */
 @Getter
-public abstract class Interpreter<T extends Instruction> implements Program<T>
+public abstract class Interpreter<T extends Instruction> implements Program
 {
     protected final Map<String, Consumer<T>> instructionHandlers;
 
-    protected AtomicBoolean running;
-    protected List<T> byteCode;
+    protected Semaphore running;
 
     @Setter
     protected int pc;
@@ -29,8 +27,7 @@ public abstract class Interpreter<T extends Instruction> implements Program<T>
     public Interpreter()
     {
         instructionHandlers = new HashMap<>();
-        running = new AtomicBoolean(false);
-        byteCode = new ArrayList<>();
+        running = new Semaphore(0);
         pc = 0;
     }
 
@@ -65,21 +62,13 @@ public abstract class Interpreter<T extends Instruction> implements Program<T>
     public abstract void interpret(T instruction);
 
     /**
-     * Interprets an instruction.
-     */
-    @Override
-    public T fetch()
-    {
-        return byteCode.get(pc++);
-    }
-
-    /**
      * Halts the program.
      */
+    @SneakyThrows
     @Override
     public void halt()
     {
-        running.set(false);
+        running.acquire();
     }
 
     /**
@@ -88,7 +77,7 @@ public abstract class Interpreter<T extends Instruction> implements Program<T>
     @Override
     public void resume()
     {
-        running.set(true);
+        running.release();
     }
 
     /**
@@ -96,19 +85,10 @@ public abstract class Interpreter<T extends Instruction> implements Program<T>
      * 
      * @return True if the program is running, false otherwise
      */
+    @Override
     public boolean isRunning()
     {
-        return running.get();
-    }
-
-    /**
-     * Returns the size of the byte code.
-     * 
-     * @return The size of the byte code
-     */
-    public int getByteCodeSize()
-    {
-        return byteCode.size();
+        return running.availablePermits() > 0;
     }
 
     @Override
@@ -116,7 +96,6 @@ public abstract class Interpreter<T extends Instruction> implements Program<T>
     {
         return "Interpreter{" +
                 "instructionHandlers=" + instructionHandlers +
-                ", byteCode=" + byteCode +
                 ", pc=" + pc +
                 ", running=" + running +
                 '}';

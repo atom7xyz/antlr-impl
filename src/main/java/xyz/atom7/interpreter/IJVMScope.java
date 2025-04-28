@@ -43,6 +43,22 @@ public class IJVMScope
     }
 
     /**
+     * Copy constructor for creating new instances during calls.
+     * 
+     * @param toCopy The blueprint scope to copy.
+     */
+    public IJVMScope(IJVMScope toCopy)
+    {
+        this.name = toCopy.name;
+
+        this.locals = new LinkedHashMap<>(toCopy.locals); // New map, copies entries (refs okay for String/Integer)
+        this.arguments = new LinkedHashMap<>(toCopy.arguments); // New map for arg definitions
+        this.stack = new Stack<>(); // New, empty stack is crucial
+
+        this.instructions = new ArrayList<>(toCopy.instructions); // New list shares instruction objects
+    }
+
+    /**
      * Add an instruction to the scope
      * 
      * @param statementCtx The statement context

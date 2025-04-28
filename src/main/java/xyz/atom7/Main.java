@@ -6,6 +6,7 @@ import xyz.atom7.interpreter.IJVMProgram;
 import xyz.atom7.parser.IJVMParserHelper;
 import xyz.atom7.parser.semantic.SemanticError;
 import xyz.atom7.parser.semantic.SemanticWarning;
+import xyz.atom7.tracer.IJVMTracer;
 
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -26,11 +27,12 @@ public class Main
     private static final String FLAG_FILE = "-file";
     private static final String FLAG_PARSE = "-parse";
     private static final String FLAG_INTERPRET = "-interpret";
+    private static final String FLAG_TRACE = "-trace";
 
     public static void main(String[] args) throws Exception
     {
         Map<String, String> options = parseArgs(args);
-        
+
         if (!validateOptions(options)) {
             printHelp();
             return;
@@ -39,6 +41,7 @@ public class Main
         String lang = options.getOrDefault("lang", "");
         String mode = options.getOrDefault("mode", "");
         String filePath = options.getOrDefault("file", "");
+        boolean trace = options.containsKey("trace");
         Utils.DEBUG = options.containsKey("debug");
 
         switch (mode) {
@@ -47,7 +50,7 @@ public class Main
                 break;
             case "interpret":
                 handleParser(lang, filePath);
-                handleInterpreter(lang, filePath);
+                handleInterpreter(lang, filePath, trace);
                 break;
             default:
                 printHelp();
@@ -88,6 +91,9 @@ public class Main
                     if (i + 1 < args.length) {
                         options.put("file", args[++i]);
                     }
+                    break;
+                case FLAG_TRACE:
+                    options.put("trace", "true");
                     break;
             }
         }
@@ -138,11 +144,11 @@ public class Main
      * @param filePath The path to the file to interpret
      * @throws Exception If an error occurs
      */
-    private static void handleInterpreter(String lang, String filePath) throws Exception
+    private static void handleInterpreter(String lang, String filePath, boolean trace) throws Exception
     {
         switch (lang) {
             case "ijvm": {
-                interpretIJVM(filePath);
+                interpretIJVM(filePath, trace);
                 break;
             }
             case "8088": {
@@ -165,6 +171,7 @@ public class Main
         System.err.println("  -ijvm, -8088             Specify the language");
         System.err.println("  -file <path>             Path to the source file");
         System.err.println("  -d, -debug               Enable debug mode");
+        System.err.println("  -tracer                  Enable tracer for step-by-step execution view");
     }
 
     /**
@@ -234,10 +241,15 @@ public class Main
      * @param filePath The path to the file to interpret
      * @throws Exception If an error occurs
      */
-    private static void interpretIJVM(String filePath) throws Exception
+    private static void interpretIJVM(String filePath, boolean trace) throws Exception
     {
         var program = new IJVMProgram<>();
         program.init(String.valueOf(CharStreams.fromPath(Paths.get(filePath))));
+
+        if (trace) {
+            Utils.TRACER = new IJVMTracer(program);
+        }
+
         program.execute();
     }
 

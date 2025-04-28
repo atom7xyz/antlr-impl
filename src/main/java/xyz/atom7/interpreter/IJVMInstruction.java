@@ -8,7 +8,7 @@ import xyz.atom7.api.interpreter.Instruction;
 public class IJVMInstruction extends Instruction
 {
     private final String argument, secondArgument;
- 
+
     /**
      * Constructor for IJVMInstruction with no arguments
      * 
