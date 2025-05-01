@@ -16,7 +16,7 @@ import static xyz.atom7.Utils.codeWritten;
 /**
  * Tests for the IJVM parser syntax error detection.
  */
-public class ParserErrorTest
+public class IJVMParserErrorTest
 {
     private IJVMParserHelper parserHelper;
 

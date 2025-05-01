@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import xyz.atom7.parser.IJVMParseResult;
 import xyz.atom7.parser.IJVMParserHelper;
-import xyz.atom7.parser.semantic.SemanticError;
+import xyz.atom7.api.parser.semantic.SemanticError;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,7 +18,7 @@ import static xyz.atom7.Utils.codeWritten;
 /**
  * Tests for the IJVM semantic analyzer.
  */
-public class SemanticAnalyzerTest
+public class IJVMSemanticAnalyzerTest
 {
     private IJVMParserHelper parserHelper;
 

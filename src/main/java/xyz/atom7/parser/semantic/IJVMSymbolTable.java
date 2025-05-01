@@ -2,6 +2,7 @@ package xyz.atom7.parser.semantic;
 
 import lombok.Getter;
 import lombok.Setter;
+import xyz.atom7.api.parser.semantic.SymbolTable;
 
 import java.util.*;
 
@@ -9,7 +10,7 @@ import java.util.*;
  * A symbol table implementation for IJVM semantic analysis.
  * Tracks variables, methods, and constants and their scopes.
  */
-public class SymbolTable
+public class IJVMSymbolTable extends SymbolTable
 {
     
     // Symbol types in IJVM
@@ -61,7 +62,7 @@ public class SymbolTable
     private String currentScope = GLOBAL_SCOPE;
     
     // Initialize symbol table with global scope
-    public SymbolTable()
+    public IJVMSymbolTable()
     {
         scopedSymbols.put(GLOBAL_SCOPE, new HashMap<>());
         normalizedNames.put(GLOBAL_SCOPE, new HashMap<>());

@@ -1,4 +1,4 @@
-package xyz.atom7.parser.semantic;
+package xyz.atom7.api.parser.semantic;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,7 +7,7 @@ import org.antlr.v4.runtime.Token;
 import static xyz.atom7.Utils.escapeSpecialChars;
 
 /**
- * Class for reporting semantic errors during IJVM semantic analysis.
+ * Class for reporting semantic errors during semantic analysis.
  */
 @Getter
 @AllArgsConstructor

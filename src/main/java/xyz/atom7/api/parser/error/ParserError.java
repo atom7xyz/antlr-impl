@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Token;
-import xyz.atom7.parser.semantic.SemanticError;
+import xyz.atom7.api.parser.semantic.SemanticError;
 
 import static xyz.atom7.Utils.escapeSpecialChars;
 

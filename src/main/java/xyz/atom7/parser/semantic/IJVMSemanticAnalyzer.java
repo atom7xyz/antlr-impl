@@ -4,6 +4,8 @@ import lombok.Getter;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
+import xyz.atom7.api.parser.semantic.SemanticError;
+import xyz.atom7.api.parser.semantic.SemanticWarning;
 import xyz.atom7.parser.IJVMParser;
 import xyz.atom7.parser.IJVMParserBaseVisitor;
 
@@ -12,12 +14,12 @@ import java.util.*;
 /**
  * Semantic analyzer for IJVM that traverses the parse tree and enforces semantic rules.
  */
-public class SemanticAnalyzer extends IJVMParserBaseVisitor<Void>
+public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
 {
     /**
      * Symbol table to track declarations
      */
-    private final SymbolTable symbolTable;
+    private final IJVMSymbolTable symbolTable;
 
     /**
      * List of semantic errors found during analysis
@@ -61,9 +63,9 @@ public class SemanticAnalyzer extends IJVMParserBaseVisitor<Void>
      */
     private String currentMethod;
 
-    public SemanticAnalyzer()
+    public IJVMSemanticAnalyzer()
     {
-        this.symbolTable = new SymbolTable();
+        this.symbolTable = new IJVMSymbolTable();
         this.errors = new ArrayList<>();
         this.warnings = new ArrayList<>();
         this.stackSize = 0;
@@ -703,10 +705,10 @@ public class SemanticAnalyzer extends IJVMParserBaseVisitor<Void>
                 String varName = id.getText();
 
                 // Check for duplicate variable declarations in the current scope
-                SymbolTable.SymbolEntry existingSymbol = symbolTable.lookupSymbol(varName);
+                IJVMSymbolTable.SymbolEntry existingSymbol = symbolTable.lookupSymbol(varName);
                 if (existingSymbol != null) {
                     // Check if the conflicting symbol is a method parameter
-                    if (existingSymbol.getType() == SymbolTable.SymbolType.VARIABLE && existingSymbol.isInitialized() && 
+                    if (existingSymbol.getType() == IJVMSymbolTable.SymbolType.VARIABLE && existingSymbol.isInitialized() && 
                             currentMethod != null && currentMethod != "main") {
                         // Method parameters are added as initialized variables, so we can use this to detect conflicts
                         addError("Variable '" + varName + "' in .var block conflicts with a method parameter", id.getSymbol());
@@ -743,12 +745,12 @@ public class SemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     {
         if (!isDeclarationPass && !isLabelScanPass) {
             String varName = ctx.ID().getText();
-            SymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
+            IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
 
             if (entry == null) {
                 addError("Variable '" + varName + "' is not defined", ctx.ID().getSymbol());
             }
-            else if (entry.getType() != SymbolTable.SymbolType.VARIABLE) {
+            else if (entry.getType() != IJVMSymbolTable.SymbolType.VARIABLE) {
                 addError("Symbol '" + varName + "' is not a variable", ctx.ID().getSymbol());
             }
             else {
@@ -828,12 +830,12 @@ public class SemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     {
         if (!isDeclarationPass && !isLabelScanPass) {
             String constName = ctx.ID().getText();
-            SymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(constName);
+            IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(constName);
 
             if (entry == null) {
                 addError("Constant '" + constName + "' is not defined", ctx.ID().getSymbol());
             }
-            else if (entry.getType() != SymbolTable.SymbolType.CONSTANT) {
+            else if (entry.getType() != IJVMSymbolTable.SymbolType.CONSTANT) {
                 addError("Symbol '" + constName + "' is not a constant", ctx.ID().getSymbol());
             }
             else {
@@ -971,12 +973,12 @@ public class SemanticAnalyzer extends IJVMParserBaseVisitor<Void>
             else if (ctx.IINC() != null) {
                 // IINC needs a valid variable
                 String varName = ctx.ID().getText();
-                SymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
+                IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
 
                 if (entry == null) {
                     addError("Variable '" + varName + "' is not defined", ctx.ID().getSymbol());
                 }
-                else if (entry.getType() != SymbolTable.SymbolType.VARIABLE) {
+                else if (entry.getType() != IJVMSymbolTable.SymbolType.VARIABLE) {
                     addError("Symbol '" + varName + "' is not a variable", ctx.ID().getSymbol());
                 }
                 else if (!entry.isInitialized()) {

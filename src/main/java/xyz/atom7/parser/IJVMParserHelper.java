@@ -5,9 +5,9 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import xyz.atom7.api.parser.ParserHelper;
 import xyz.atom7.api.parser.error.ParserError;
 import xyz.atom7.api.parser.error.ParserErrorListener;
-import xyz.atom7.parser.semantic.SemanticAnalyzer;
-import xyz.atom7.parser.semantic.SemanticError;
-import xyz.atom7.parser.semantic.SemanticWarning;
+import xyz.atom7.parser.semantic.IJVMSemanticAnalyzer;
+import xyz.atom7.api.parser.semantic.SemanticError;
+import xyz.atom7.api.parser.semantic.SemanticWarning;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +58,7 @@ public class IJVMParserHelper extends ParserHelper<IJVMParseResult>
         }
         
         // Perform semantic analysis
-        SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
+        IJVMSemanticAnalyzer semanticAnalyzer = new IJVMSemanticAnalyzer();
         semanticAnalyzer.analyze(programContext);
 
         semanticErrors.addAll(semanticAnalyzer.getErrors());
