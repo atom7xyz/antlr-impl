@@ -13,10 +13,11 @@ program: NEWLINE* line* EOF;
 
 // Lines in the program
 line
-    : assignment NEWLINE         // Constant/variable assignment
-    | section NEWLINE            // Section directive
-    | labelDecl                  // Label declaration
-    | statement? NEWLINE         // Instruction or directive (or empty line)
+    : labelDecl NEWLINE
+    | labelDecl statement? NEWLINE  // Label followed by optional statement
+    | assignment NEWLINE
+    | section NEWLINE
+    | statement? NEWLINE
     ;
 
 // Assignment of constants/variables
@@ -34,13 +35,26 @@ statement: instruction | directive;
 // Instructions with optional operands
 instruction: mnemonic operandList?;
 
+// Group instructions by their operand requirements
 mnemonic:
-      MOV | MOVB | SUB | SUBB | DIV | DIVB | CMP | CMPB | ADD | ADDB | XOR | XORB
-    | INC | DEC | JGE | JG | JE | JMP | JNE | LOOP | CALL | RET | PUSH | POP | SYS
+      // No operand instructions
+      RET
+      // Single operand instructions
+    | (INC | DEC | PUSH | POP | CALL | JMP | JE | JNE | JZ | JNZ | JG | JGE | JL | JLE | JNGE | JNG | LOOP)
+      // Two operand instructions (word)
+    | (MOV | ADD | SUB | CMP | DIV | XOR | MUL)
+      // Two operand instructions (byte)
+    | (MOVB | ADDB | SUBB | CMPB | DIVB | XORB | MULB)
+      // Special instructions
+    | SYS
     ;
 
-// List of operands (comma-separated)
-operandList: operand (COMMA operand)*;
+// List of operands (comma-separated) with count validation
+operandList:
+      operand                       // For single-operand instructions
+    | operand COMMA operand         // For two-operand instructions
+    | operand (COMMA operand)*      // For variable number of operands (like PUSH/SYS)
+    ;
 
 // Operand
 operand
@@ -51,15 +65,15 @@ operand
     ;
 
 // Register names
-register: AX | BX | CX | DX | SI | DI | BP | SP | AL | AH | BL | BH | CL | CH | DL | DH;
+register: AX | BX | CX | DX | SI | DI | BP | SP | AL | AH | BL | BH | CL | CH | DL | DH | CS | DS | ES | SS;
 
 // Immediate value (number)
 immediate: HEX | NUM;
 
 // Arithmetic expressions (e.g., s-v, 5+BP, etc.)
 expr
-    : ID ( (PLUS | MINUS) ID | (PLUS | MINUS) NUM )*
-    | NUM ( (PLUS | MINUS) ID | (PLUS | MINUS) NUM )*
+    : ID ((PLUS | MINUS) (ID | NUM))*  // Label arithmetic like v2-v1
+    | NUM ((PLUS | MINUS) (ID | NUM))*
     ;
 
 // Memory addressing modes
@@ -70,7 +84,7 @@ memory
     | LPAREN register RPAREN NUM
     | ID LPAREN register RPAREN
     | LPAREN register RPAREN ID
-    | LPAREN register RPAREN LPAREN register RPAREN
+    | LPAREN register RPAREN LPAREN register RPAREN  // (BX)(DI) format
     | LPAREN register RPAREN LPAREN register RPAREN LPAREN immediate RPAREN
     | LPAREN ID RPAREN LPAREN register RPAREN
     | LPAREN register RPAREN LPAREN ID RPAREN
@@ -84,4 +98,4 @@ directive
     ;
 
 // List of values for .BYTE
-valueList: (HEX | NUM) (COMMA (HEX | NUM))*; 
+valueList: (HEX | NUM) (COMMA (HEX | NUM))*;

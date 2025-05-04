@@ -26,7 +26,9 @@ public class SemanticWarning
      */
     public SemanticWarning(String message, Token token)
     {
-        this(escapeSpecialChars(message), token.getLine(), token.getCharPositionInLine());
+        this(escapeSpecialChars(message),
+                token != null ? token.getLine() : -1,
+                token != null ? token.getCharPositionInLine() : -1);
     }
     
     /**

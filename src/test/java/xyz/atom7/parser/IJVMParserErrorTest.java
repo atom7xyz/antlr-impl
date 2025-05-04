@@ -262,8 +262,8 @@ public class IJVMParserErrorTest
     }
 
     @Test
-    @DisplayName("Tests the Tanenbaum 1999 file")
-    public void testTanenbaum1999() throws IOException
+    @DisplayName("Valid programs should have no errors")
+    public void testAllExampleFiles() throws IOException
     {
         URL resourceUrl = getClass()
                 .getClassLoader()
@@ -272,12 +272,12 @@ public class IJVMParserErrorTest
 
         File dir = new File(resourceUrl.getFile());
 
-        var list = dir.listFiles((dir1, name) -> name.contains("Tanenbaum"));
+        var list = dir.listFiles((dir1, name) -> name.endsWith(".jas"));
         assertNotNull(list);
 
         for (File file : list) {
             List<ParserError> errors = analyzeCodeFromPath(file.getAbsolutePath());
-            assertTrue(errors.isEmpty(), "Valid program with comments should have no errors");
+            assertTrue(errors.isEmpty(), "Valid example program should have no parser errors");
         }
     }
 
