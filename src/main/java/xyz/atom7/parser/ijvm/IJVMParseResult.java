@@ -1,9 +1,10 @@
-package xyz.atom7.parser;
+package xyz.atom7.parser.ijvm;
 
 import xyz.atom7.api.parser.ParseResult;
 import xyz.atom7.api.parser.error.ParserError;
 import xyz.atom7.api.parser.semantic.SemanticError;
 import xyz.atom7.api.parser.semantic.SemanticWarning;
+import xyz.atom7.parser.IJVMParser;
 
 import java.util.List;
 

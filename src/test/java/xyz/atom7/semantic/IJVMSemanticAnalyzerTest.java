@@ -4,8 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import xyz.atom7.api.parser.semantic.SemanticError;
-import xyz.atom7.parser.IJVMParseResult;
-import xyz.atom7.parser.IJVMParserHelper;
+import xyz.atom7.parser.ijvm.IJVMParseResult;
+import xyz.atom7.parser.ijvm.IJVMParserHelper;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package xyz.atom7.parser.semantic;
+package xyz.atom7.parser.asm8088.semantic;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -27,6 +27,7 @@ public class ASM8088SymbolTable extends SymbolTable
         private final String name;
         private final SymbolType type;
         private final String section; // Which section the symbol belongs to
+        @Setter
         private Integer value;        // For constants
         @Setter
         private boolean defined;      // If label/constant has been defined
@@ -47,13 +48,6 @@ public class ASM8088SymbolTable extends SymbolTable
             this.defined = type == SymbolType.REGISTER; // Registers are predefined
             this.referenced = false;
         }
-
-        /**
-         * Set the value for a constant
-         */
-        public void setValue(Integer value) {
-            this.value = value;
-        }
     }
     
     // Map to store symbols by name (using case-insensitive map)
@@ -61,8 +55,9 @@ public class ASM8088SymbolTable extends SymbolTable
     
     // Map to store normalized names (lowercase) to original names for case-insensitive lookup
     private final Map<String, String> normalizedNames = new HashMap<>();
-    
+
     // Current section (.DATA, .TEXT, .BSS)
+    @Getter
     private String currentSection = null;
     
     // Initialize symbol table with predefined registers
@@ -126,14 +121,7 @@ public class ASM8088SymbolTable extends SymbolTable
             normalizedNames.put(normalizedSection, section);
         }
     }
-    
-    /**
-     * Get the current section
-     */
-    public String getCurrentSection() {
-        return currentSection;
-    }
-    
+
     /**
      * Add a label to the symbol table
      */

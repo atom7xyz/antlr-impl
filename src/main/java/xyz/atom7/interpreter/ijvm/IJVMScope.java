@@ -1,4 +1,4 @@
-package xyz.atom7.interpreter;
+package xyz.atom7.interpreter.ijvm;
 
 import lombok.Getter;
 import lombok.Setter;

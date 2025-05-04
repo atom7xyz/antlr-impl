@@ -1,10 +1,10 @@
-package xyz.atom7.tracer;
+package xyz.atom7.tracer.ijvm;
 
 import lombok.Getter;
 import xyz.atom7.api.tracer.Tracer;
-import xyz.atom7.interpreter.IJVMInstruction;
-import xyz.atom7.interpreter.IJVMProgram;
-import xyz.atom7.interpreter.IJVMScope;
+import xyz.atom7.interpreter.ijvm.IJVMInstruction;
+import xyz.atom7.interpreter.ijvm.IJVMProgram;
+import xyz.atom7.interpreter.ijvm.IJVMScope;
 
 import java.util.Map;
 import java.util.Objects;

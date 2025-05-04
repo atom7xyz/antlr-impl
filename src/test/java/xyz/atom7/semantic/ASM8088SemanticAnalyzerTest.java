@@ -5,8 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import xyz.atom7.api.parser.semantic.SemanticError;
 import xyz.atom7.api.parser.semantic.SemanticWarning;
-import xyz.atom7.parser.ASM8088ParseResult;
-import xyz.atom7.parser.ASM8088ParserHelper;
+import xyz.atom7.parser.asm8088.ASM8088ParseResult;
+import xyz.atom7.parser.asm8088.ASM8088ParserHelper;
 
 import java.io.File;
 import java.io.IOException;

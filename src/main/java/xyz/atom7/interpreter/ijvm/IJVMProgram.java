@@ -1,4 +1,4 @@
-package xyz.atom7.interpreter;
+package xyz.atom7.interpreter.ijvm;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import xyz.atom7.Utils;
 import xyz.atom7.api.interpreter.Interpreter;
 import xyz.atom7.parser.IJVMParser;
-import xyz.atom7.parser.IJVMParserHelper;
+import xyz.atom7.parser.ijvm.IJVMParserHelper;
 
 import java.util.*;
 import java.util.function.Consumer;

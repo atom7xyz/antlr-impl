@@ -1,4 +1,4 @@
-package xyz.atom7.interpreter;
+package xyz.atom7.interpreter.ijvm;
 
 import lombok.Getter;
 import org.antlr.v4.runtime.tree.TerminalNode;
