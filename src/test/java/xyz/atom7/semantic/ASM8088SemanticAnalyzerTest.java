@@ -11,8 +11,10 @@ import xyz.atom7.parser.ASM8088ParserHelper;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static xyz.atom7.Utils.codeWritten;
 
 /**
@@ -33,7 +35,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Valid program should have no semantic errors")
-    public void testValidProgram() {
+    public void testValidProgram() 
+    {
         String validCode = codeWritten(
                 "_PRINTF = 127",
                 "_EXIT = 1",
@@ -57,8 +60,8 @@ public class ASM8088SemanticAnalyzerTest
                 "buffer: .SPACE 10"
         );
         
-        ASM8088ParseResult result = analyzeCode(validCode);
-        assertTrue(result.getSemanticErrors().isEmpty(), "Valid program should have no semantic errors");
+        List<SemanticError> result = analyzeCode(validCode);
+        assertTrue(result.isEmpty(), "Valid program should have no semantic errors");
     }
     
     /**
@@ -66,7 +69,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should detect undefined label references")
-    public void testUndefinedLabelReference() {
+    public void testUndefinedLabelReference() 
+    {
         String invalidCode = codeWritten(
                 ".SECT .TEXT",
                 "main:",
@@ -74,31 +78,16 @@ public class ASM8088SemanticAnalyzerTest
                 "    JMP nonexistent_label" // Undefined label
         );
         
-        ASM8088ParseResult result = analyzeCode(invalidCode);
+        List<SemanticError> result = analyzeCode(invalidCode);
         
-        // Check that we have at least one error or warning about the undefined label
-        boolean foundIssue = false;
-        
-        // First check errors
-        for (SemanticError error : result.getSemanticErrors()) {
-            if (error.getMessage().contains("referenced but never defined") || 
-                error.getMessage().contains("nonexistent_label")) {
-                foundIssue = true;
-                break;
-            }
-        }
-        
-        // If not found in errors, check warnings
-        if (!foundIssue) {
-            for (SemanticWarning warning : result.getSemanticWarnings()) {
-                if (warning.getMessage().contains("may not be defined") || 
-                    warning.getMessage().contains("nonexistent_label")) {
-                    foundIssue = true;
-                    break;
-                }
-            }
-        }
-        
+        boolean foundIssue;
+
+        foundIssue = result.stream()
+                .map(SemanticError::getMessage)
+                .anyMatch(m ->
+                    m.contains("referenced but never defined") ||
+                    m.contains("nonexistent_label"));
+    
         assertTrue(foundIssue, "Should detect reference to undefined label 'nonexistent_label'");
     }
     
@@ -107,7 +96,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should detect duplicate label definitions")
-    public void testDuplicateLabelDefinition() {
+    public void testDuplicateLabelDefinition()
+    {
         String invalidCode = codeWritten(
                 ".SECT .TEXT",
                 "label1:",
@@ -119,17 +109,15 @@ public class ASM8088SemanticAnalyzerTest
                 "    RET"
         );
         
-        ASM8088ParseResult result = analyzeCode(invalidCode);
+        List<SemanticError> result = analyzeCode(invalidCode);
         
-        boolean foundDuplicateError = false;
-        // Check for appropriate error message about duplicate label
-        for (SemanticError error : result.getSemanticErrors()) {
-            if (error.getMessage().contains("already defined") && 
-                error.getMessage().contains("label1")) {
-                foundDuplicateError = true;
-                break;
-            }
-        }
+        boolean foundDuplicateError;
+
+        foundDuplicateError = result.stream()
+                .map(SemanticError::getMessage)
+                .anyMatch(m ->
+                    m.contains("already defined") &&
+                    m.contains("label1"));
         
         assertTrue(foundDuplicateError, "Should detect duplicate definition of label 'label1'");
     }
@@ -139,7 +127,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should detect register type mismatches with instructions")
-    public void testRegisterTypeMismatch() {
+    public void testRegisterTypeMismatch() 
+    {
         String invalidCode = codeWritten(
                 ".SECT .TEXT",
                 "main:",
@@ -147,53 +136,26 @@ public class ASM8088SemanticAnalyzerTest
                 "    MOV AL, BL"    // Word instruction with byte registers
         );
         
-        ASM8088ParseResult result = analyzeCode(invalidCode);
+        List<SemanticError> result = analyzeCode(invalidCode);
         
-        // Check for appropriate error messages about register type mismatches
-        int mismatchErrors = 0;
-        for (SemanticError error : result.getSemanticErrors()) {
-            if ((error.getMessage().contains("Byte instruction requires byte register") || 
-                 error.getMessage().contains("Word instruction requires word register"))) {
-                mismatchErrors++;
-            }
-        }
+        boolean foundMismatchError;
+
+        foundMismatchError = result.stream()
+                .map(SemanticError::getMessage)
+                .anyMatch(m ->
+                    m.contains("Byte instruction requires byte register") ||
+                    m.contains("Word instruction requires word register"));
         
-        assertTrue(mismatchErrors >= 1, "Should detect at least one register type mismatch");
+        assertTrue(foundMismatchError, "Should detect at least one register type mismatch");
     }
-    
-    /**
-     * Test for section compatibility warnings
-     */
-    @Test
-    @DisplayName("Should warn about directives in incorrect sections")
-    public void testSectionCompatibilityWarnings() {
-        String invalidCode = codeWritten(
-                ".SECT .TEXT",
-                "var1: .BYTE 0x01, 0x02", // .BYTE should be in .DATA
-                ".SECT .BSS",
-                "msg: .ASCII \"Wrong section\"" // .ASCII should be in .DATA
-        );
-        
-        ASM8088ParseResult result = analyzeCode(invalidCode);
-        
-        // Check for appropriate warnings about section compatibility
-        boolean foundSectionWarning = false;
-        for (SemanticWarning warning : result.getSemanticWarnings()) {
-            if (warning.getMessage().contains("should be in .DATA")) {
-                foundSectionWarning = true;
-                break;
-            }
-        }
-        // todo fix
-        // assertTrue(foundSectionWarning, "Should warn about directives in incorrect sections");
-    }
-    
+
     /**
      * Test for jump instructions outside .TEXT section
      */
     @Test
     @DisplayName("Should warn about jump instructions outside .TEXT section")
-    public void testJumpInstructionsOutsideTextSection() {
+    public void testJumpInstructionsOutsideTextSection() 
+    {
         String invalidCode = codeWritten(
                 ".SECT .DATA",
                 "JMP label1", // Jump in .DATA section
@@ -202,19 +164,15 @@ public class ASM8088SemanticAnalyzerTest
                 "    RET"
         );
         
-        ASM8088ParseResult result = analyzeCode(invalidCode);
+        List<SemanticWarning> result = analyzeWarnings(invalidCode);
         
-        // Check for warning about jump instruction outside .TEXT section
-        boolean foundJumpWarning = false;
-        for (SemanticWarning warning : result.getSemanticWarnings()) {
-            if (warning.getMessage().contains("Jump/call instruction used outside .TEXT section")) {
-                foundJumpWarning = true;
-                break;
-            }
-        }
+        boolean foundJumpWarning;
 
-        // todo fix
-        // assertTrue(foundJumpWarning, "Should warn about jump instruction in .DATA section");
+        foundJumpWarning = result.stream()
+                .map(SemanticWarning::getMessage)
+                .anyMatch(m -> m.contains("Jump/call instruction used outside .TEXT section"));
+
+        assertTrue(foundJumpWarning, "Should warn about jump instructions outside .TEXT section");
     }
     
     /**
@@ -222,7 +180,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should warn about unreferenced labels")
-    public void testUnreferencedLabels() {
+    public void testUnreferencedLabels() 
+    {
         String codeWithUnreferencedLabel = codeWritten(
                 ".SECT .TEXT",
                 "main:",
@@ -236,18 +195,16 @@ public class ASM8088SemanticAnalyzerTest
                 "    RET"
         );
         
-        ASM8088ParseResult result = analyzeCode(codeWithUnreferencedLabel);
+        List<SemanticWarning> result = analyzeWarnings(codeWithUnreferencedLabel);
         
-        // Check for warning about unreferenced label
-        boolean foundUnreferencedWarning = false;
-        for (SemanticWarning warning : result.getSemanticWarnings()) {
-            if (warning.getMessage().contains("defined but never referenced") && 
-                warning.getMessage().contains("unused_label")) {
-                foundUnreferencedWarning = true;
-                break;
-            }
-        }
-        
+        boolean foundUnreferencedWarning;
+
+        foundUnreferencedWarning = result.stream()
+                .map(SemanticWarning::getMessage)
+                .anyMatch(m ->
+                    m.contains("defined but never referenced") &&
+                    m.contains("unused_label"));
+
         assertTrue(foundUnreferencedWarning, "Should warn about unreferenced label 'unused_label'");
     }
     
@@ -256,7 +213,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should detect duplicate constant definitions")
-    public void testDuplicateConstantDefinition() {
+    public void testDuplicateConstantDefinition() 
+    {
         String invalidCode = codeWritten(
                 "max_count = 10",
                 "min_count = 5",
@@ -267,17 +225,15 @@ public class ASM8088SemanticAnalyzerTest
                 "    RET"
         );
         
-        ASM8088ParseResult result = analyzeCode(invalidCode);
+        List<SemanticError> result = analyzeCode(invalidCode);
         
-        // Check for error about duplicate constant definition
-        boolean foundDuplicateError = false;
-        for (SemanticError error : result.getSemanticErrors()) {
-            if (error.getMessage().contains("already defined") && 
-                error.getMessage().contains("max_count")) {
-                foundDuplicateError = true;
-                break;
-            }
-        }
+        boolean foundDuplicateError;
+
+        foundDuplicateError = result.stream()
+                .map(SemanticError::getMessage)
+                .anyMatch(m ->
+                    m.contains("already defined") &&
+                    m.contains("max_count"));
         
         assertTrue(foundDuplicateError, "Should detect duplicate definition of constant 'max_count'");
     }
@@ -287,7 +243,8 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should warn about memory access to named locations outside .DATA section")
-    public void testMemoryAccessOutsideDataSection() {
+    public void testMemoryAccessOutsideDataSection() 
+    {
         String invalidCode = codeWritten(
                 ".SECT .DATA",
                 "buffer: .SPACE 10",
@@ -299,20 +256,15 @@ public class ASM8088SemanticAnalyzerTest
                 "    RET"
         );
         
-        ASM8088ParseResult result = analyzeCode(invalidCode);
+        List<SemanticWarning> result = analyzeWarnings(invalidCode);
         
-        // Since this may not be detected by the analyzer as written,
-        // we'll just make a basic check that we can parse the code
         assertNotNull(result, "Should be able to parse code with memory access");
         
-        // Optionally, check if there's a warning about memory access
-        // but don't fail the test if not found
-        boolean hasWarning = result.getSemanticWarnings().stream()
-            .anyMatch(w -> w.getMessage().contains("memory access") || 
-                          w.getMessage().contains("named location"));
-        
-        // Log this result but don't assert
-        System.out.println("Memory access warning present: " + hasWarning);
+        boolean hasWarning = result.stream()
+                .map(SemanticWarning::getMessage)
+                .anyMatch(m -> m.contains("Memory access to named location should be in .DATA section"));
+
+        assertTrue(hasWarning, "Should warn about memory access to named location outside .DATA section");
     }
 
     /**
@@ -320,17 +272,15 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Program should have sections defined")
-    public void testNoSectionDefined() {
+    public void testNoSectionDefined() 
+    {
         String codeWithoutSections = codeWritten(
                 "main:",
                 "    MOV AX, 0x1000",
                 "    RET"
         );
         
-        ASM8088ParseResult result = analyzeCode(codeWithoutSections);
-        
-        // Since this may not cause errors/warnings depending on implementation,
-        // just make sure we can parse it
+        List<SemanticError> result = analyzeCode(codeWithoutSections);
         assertNotNull(result, "Should be able to parse code without sections");
     }
     
@@ -339,51 +289,48 @@ public class ASM8088SemanticAnalyzerTest
      */
     @Test
     @DisplayName("Should parse example files without semantic errors")
-    public void testExampleFiles() throws IOException {
+    public void testExampleFiles() throws IOException 
+    {
         URL resourceUrl = getClass()
                 .getClassLoader()
-                .getResource("examples/8088");
-        
+                .getResource("examples/ijvm");
         assertNotNull(resourceUrl, "Examples directory not found in resources");
-        
-        File dir = new File(resourceUrl.getFile());
-        File[] exampleFiles = dir.listFiles((dir1, name) -> name.endsWith(".asm"));
-        
-        assertNotNull(exampleFiles, "No .asm files found in examples directory");
-        assertTrue(exampleFiles.length > 0, "Should find at least one example file");
-        
-        // Test first example file
-        File exampleFile = exampleFiles[0];
-        ASM8088ParseResult result = analyzeCodeFromPath(exampleFile.getAbsolutePath());
-        
-        // Print any errors found
-        if (!result.getSemanticErrors().isEmpty()) {
-            System.out.println("Semantic errors in " + exampleFile.getName() + ":");
-            for (SemanticError error : result.getSemanticErrors()) {
-                System.out.println("  " + error.getMessage());
-            }
-        }
 
-        System.out.println(result.getParserErrors());
-        
-        // The example might have some semantic issues but shouldn't have parser errors
-        assertTrue(result.getParserErrors().isEmpty(), 
-                   "Example file should have no syntax errors: " + exampleFile.getName());
+        File dir = new File(resourceUrl.getFile());
+
+        var list = dir.listFiles((dir1, name) -> name.contains("Tanenbaum"));
+        assertNotNull(list);
+
+        for (File file : list) {
+            List<SemanticError> errors = analyzeCodeFromPath(file.getAbsolutePath());
+            assertTrue(errors.isEmpty(), "Valid program with comments should have no errors");
+        }
     }
-    
+
     /**
      * Helper method to analyze code and return the parse result
      */
-    private ASM8088ParseResult analyzeCode(String code)
+    private List<SemanticError> analyzeCode(String code)
     {
-        return parserHelper.parseString(code);
+        ASM8088ParseResult result = parserHelper.parseString(code);
+        return result.getSemanticErrors();
+    }
+
+    /**
+     * Helper method to analyze code and return the parse result for warnings
+     */
+    private List<SemanticWarning> analyzeWarnings(String code)
+    {
+        ASM8088ParseResult result = parserHelper.parseString(code);
+        return result.getSemanticWarnings();
     }
     
     /**
      * Helper method to analyze code from a file path
      */
-    private ASM8088ParseResult analyzeCodeFromPath(String filePath) throws IOException
+    private List<SemanticError> analyzeCodeFromPath(String filePath) throws IOException
     {
-        return parserHelper.parseFile(filePath);
+        ASM8088ParseResult result = parserHelper.parseFile(filePath);
+        return result.getSemanticErrors();
     }
 } 

@@ -3,9 +3,9 @@ package xyz.atom7.semantic;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import xyz.atom7.api.parser.semantic.SemanticError;
 import xyz.atom7.parser.IJVMParseResult;
 import xyz.atom7.parser.IJVMParserHelper;
-import xyz.atom7.api.parser.semantic.SemanticError;
 
 import java.io.File;
 import java.io.IOException;
@@ -329,12 +329,18 @@ public class IJVMSemanticAnalyzerTest
         }
     }
 
+    /**
+     * Helper method to analyze code and return the parse result
+     */
     private List<SemanticError> analyzeCode(String code)
     {
         IJVMParseResult result = parserHelper.parseString(code);
         return result.getSemanticErrors();
     }
 
+    /**
+     * Helper method to analyze code from a file path and return errors
+     */
     private List<SemanticError> analyzeCodeFromPath(String filePath) throws IOException
     {
         IJVMParseResult result = parserHelper.parseFile(filePath);

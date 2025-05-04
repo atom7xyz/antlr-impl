@@ -2,10 +2,10 @@ package xyz.atom7;
 
 import org.antlr.v4.runtime.CharStreams;
 import xyz.atom7.api.parser.error.ParserError;
-import xyz.atom7.interpreter.IJVMProgram;
-import xyz.atom7.parser.IJVMParserHelper;
 import xyz.atom7.api.parser.semantic.SemanticError;
 import xyz.atom7.api.parser.semantic.SemanticWarning;
+import xyz.atom7.interpreter.IJVMProgram;
+import xyz.atom7.parser.IJVMParserHelper;
 import xyz.atom7.tracer.IJVMTracer;
 
 import java.nio.file.Paths;

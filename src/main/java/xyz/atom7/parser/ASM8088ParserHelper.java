@@ -5,9 +5,9 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import xyz.atom7.api.parser.ParserHelper;
 import xyz.atom7.api.parser.error.ParserError;
 import xyz.atom7.api.parser.error.ParserErrorListener;
-import xyz.atom7.parser.semantic.ASM8088SemanticAnalyzer;
 import xyz.atom7.api.parser.semantic.SemanticError;
 import xyz.atom7.api.parser.semantic.SemanticWarning;
+import xyz.atom7.parser.semantic.ASM8088SemanticAnalyzer;
 
 import java.util.ArrayList;
 import java.util.List;

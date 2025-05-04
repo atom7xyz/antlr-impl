@@ -188,6 +188,25 @@ public class ASM8088ParserErrorTest
     }
 
     /**
+     * Test for invalid number format in constant assignment
+     */
+    @Test
+    @DisplayName("Should detect invalid number format in constant assignment")
+    public void testInvalidNumberFormat()
+    {
+        String invalidCode = codeWritten(
+                "invalid_const = 0xG", // Invalid hex format
+                ".SECT .TEXT",
+                "main:",
+                "    MOV AX, 0x1000",
+                "    RET"
+        );
+
+        List<ParserError> result = analyzeCode(invalidCode);
+        assertFalse(result.isEmpty(), "Should detect invalid number format in constant assignment");
+    }
+
+    /**
      * Test an example file from resources
      */
     @Test

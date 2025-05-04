@@ -8,7 +8,10 @@ import xyz.atom7.api.parser.semantic.SemanticWarning;
 import xyz.atom7.parser.asm8088Parser;
 import xyz.atom7.parser.asm8088ParserBaseVisitor;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Semantic analyzer for 8088 assembly language that traverses the parse tree and enforces semantic rules.
@@ -195,15 +198,15 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
      */
     private void checkForUndefinedSymbols()
     {
-        List<ASM8088SymbolTable.SymbolEntry> undefinedSymbols = symbolTable.getUndefinedSymbols();
-        for (ASM8088SymbolTable.SymbolEntry symbol : undefinedSymbols) {
+        var undefinedSymbols = symbolTable.getUndefinedSymbols();
+        for (var symbol : undefinedSymbols) {
             // We don't have token information here, so we'll use null for the token
             addError("Symbol '" + symbol.getName() + "' is referenced but never defined", null);
         }
 
         // Check for unreferenced labels (warning)
-        List<ASM8088SymbolTable.SymbolEntry> unreferencedSymbols = symbolTable.getUnreferencedSymbols();
-        for (ASM8088SymbolTable.SymbolEntry symbol : unreferencedSymbols) {
+        var unreferencedSymbols = symbolTable.getUnreferencedSymbols();
+        for (var symbol : unreferencedSymbols) {
             if (symbol.getType() == ASM8088SymbolTable.SymbolType.LABEL) {
                 addWarning("Label '" + symbol.getName() + "' is defined but never referenced", null);
             }
@@ -268,8 +271,8 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
         if (section != null) {
             if (isDeclarationPass) {
                 symbolTable.setCurrentSection(section);
-                this.currentSection = section;
             }
+            this.currentSection = section;
         }
         
         return null;
@@ -390,7 +393,7 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
 
     /**
      * Visit the operand list context with instruction type awareness
-     * 
+     *
      * @param ctx The operand list context
      * @param isByteInstruction Whether the instruction is a byte instruction
      */
@@ -423,7 +426,7 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
                 }
             }
         }
-        
+
         return null;
     }
 
