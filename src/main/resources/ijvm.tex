@@ -9,7 +9,7 @@
 \usepackage{graphicx}
 \usepackage{float}
 
-\title{IJVM Interpreter: Design and Implementation of a Subset of the IJVM Specification}
+\title{antlr-impl: Design and Implementation of an Interpreter for a subset of the IJVM specification}
 \author{
     Author: Antonio Masala\\
     Co-Author: Marco La Civita
@@ -20,9 +20,10 @@
 \maketitle
 
 \begin{abstract}
-This paper presents the design and implementation of an interpreter for a subset of the IJVM instruction set, developed as an educational tool to demonstrate virtual machine concepts. Built using Java and ANTLR, the system comprises four key components: Lexer, Parser, Semantic Analyzer, and Interpreter. 
+This paper provides a high-level overview of the design and implementation of the tool \texttt{antlr-impl}, an interpreter for a subset of the IJVM instruction set, which was created as an educational tool to show low-level execution flow and memory management. 
+The system, which was built with Java and ANTLR, consists of four main components: a Lexer, a Parser, a Semantic Analyzer, and an Interpreter. 
 
-While not intended for formal verification, this system serves as a practical and flexible tool for learning and experimentation.
+While not intended for formal verification, this approach is an effective tool for learning and experimenting.
 
 \vspace{2em}
 \noindent
@@ -32,92 +33,94 @@ While not intended for formal verification, this system serves as a practical an
 \newpage
 
 \section{Introduction}
-The IJVM (Integer Java Virtual Machine) is a simplified virtual machine model used in academic settings to illustrate fundamental low-level programming and computer architecture concepts. This project implements an interpreter for a chosen subset of the IJVM specification.
+The IJVM (Integer Java Virtual Machine) is a simple virtual machine model that is used in academic contexts to illustrate key low-level programming and computer architecture concepts.  
 
-The interpreter reads and executes IJVM-like source code directly, without compiling it into bytecode or machine code. It implements a full processing pipeline—including lexical analysis, parsing, semantic analysis, and execution—using Java 11 along with the ANTLR 4 framework for robust grammar-based language recognition.
+This tool was developed for the Architecture of Computer Systems course taught by Professor Diego Reforgiato Recupero at the University of Cagliari. 
 
-This implementation was developed as part of the Architecture of Computer Systems course under the supervision of Professor Diego Reforgiato Recupero at the University of Cagliari. Certain IJVM features, such as the \texttt{WIDE} instruction, have been deliberately excluded to maintain focus on core concepts and reduce complexity.
+It makes use of Java 11 and the ANTLR 4 framework for robust grammar-based language recognition to put together an exhaustive processing pipeline, involving lexical analysis, parsing, semantic analysis, and execution.
 
-Although the design emphasizes logical and structural correctness, it does not provide formal guarantees of correctness or completeness. Users should view this interpreter as a valuable educational tool rather than a complete implementation.
+To maintain focus on core concepts and reduce complexity the tool does not implement the IJVM specification fully: some instructions such as the  \texttt{WIDE} instruction have been deliberately excluded. Table~\ref{tab:instructions} provides the list of supported instructions.
+
+Although the design of the tool aims to achieve logical and structural correctness, it does not provide formal guarantees of correctness or completeness. Users should view it as a valuable educational tool rather than an oracle of thruth.
 
 \section{Design and Architecture}
-The system is designed as a modular architecture, with clearly defined components corresponding to each phase of the interpretation process.
+The system features a modular design with separate components for each interpretation step. Unlike traditional approaches, the interpreter executes IJVM source code directly without intermediate compilation into bytecode.
 
 \subsection{Lexer and Parser}
-The lexer and parser are generated using ANTLR 4 based on the grammar files \texttt{IJVMLexer.g4} and \texttt{IJVMParser.g4}. The lexer tokenizes the IJVM source code into meaningful tokens, which the parser then processes to construct an abstract syntax tree (AST), serving as the structural basis for subsequent semantic analysis and interpretation.
+The lexer and parser are generated using ANTLR 4 and it's grammar files \texttt{IJVMLexer.g4} and \texttt{IJVMParser.g4}.  The lexer converts the IJVM source code into meaningful tokens, which the parser then uses to build an abstract syntax tree (AST), which serves as the structural foundation for semantic analysis and interpretation.
 
 \subsection{Semantic Analyzer}
-The semantic analyzer, implemented in \texttt{SemanticAnalyzer.java}, traverses the AST to enforce semantic rules. It checks for issues such as the use of undeclared or uninitialized variables, as well as invalid method invocations. The \texttt{SymbolTable} class manages scopes and symbols, ensuring proper resolution of variables and methods, while the \texttt{SemanticWarning} and \texttt{SemanticError} classes communicate potential issues and critical errors, respectively.
+The semantic analyzer implemented in \texttt{SemanticAnalyzer.java} enforces semantic rules through AST traversal. It detects problems such as undeclared or uninitialized variables, as well as incorrect function calls. The \texttt{SymbolTable} class handles scopes and symbols to ensure proper resolution of variables and methods. The \texttt{SemanticWarning} and \texttt{SemanticError} classes are used to signal potential problems and fatal errors, respectively.
 
 \subsection{Interpreter}
-The interpreter itself—implemented in \texttt{IJVMProgram.java}—executes the IJVM code directly from the AST. The \texttt{IJVMProgram} class orchestrates the overall execution flow, including the management of a call stack and constant pool. The \texttt{IJVMScope} class governs individual execution contexts, handling local variables and operand stacks, while the \texttt{IJVMInstruction} class encapsulates the behavior of individual instructions. The system's stack operates on signed 32-bit integers.
+The interpreter in \texttt{IJVMProgram.java} executes the IJVM code directly from the AST without intermediate compilation. That same class manages the execution flow, including the call stack and constant pool. The \texttt{IJVMScope} class handles execution contexts, including local variables and operand stacks, whereas the \texttt{IJVMInstruction} class encapsulates the behavior of individual instructions.  The system's stack utilizes signed 32-bit integers.
 
 \subsection{Snapshot and Tracer}
-The interpreter includes a tracing mechanism implemented through the \texttt{IJVMTracer} and \texttt{IJVMSnapshot} classes to aid in debugging and understanding program execution.
+ The interpreter includes a tracing system built around the \texttt{IJVMTracer} and \texttt{IJVMSnapshot} classes to aid in debugging and in understanding program execution steps.
 
 \subsubsection{Tracer}
-The \texttt{IJVMTracer.java} class provides a detailed view of the interpreter's state during execution. It displays information about the current instruction, program counter, scope details (including stack and local variables), call stack, and constant pool. The tracer uses color-coded console output to organize information into logical categories such as static data, current execution context, and control flow.
+The \texttt{IJVMTracer.java} class provides a thorough view of the interpreter's state across execution. It exposes information about the current instruction, program counter, scope details (such as stack and local variables), call stack, and constant pool. The tracer divides information into logical categories using color-coded console output, including static data, current execution context, and control flow.
 
 \subsubsection{Snapshot}
-The \texttt{IJVMSnapshot.java} class captures a complete memory dump at a specific point during the execution of the program. It records the state of all scopes, call stacks, constant pools, local variables, and operand stacks associated with each scope. By maintaining a snapshot of the interpreter's memory, it enables detailed analysis and comparison of program states between execution steps.
+The \texttt{IJVMSnapshot.java} class records a complete memory dump at a given point during the program's execution. It keeps track of the status of all scopes, call stacks, constant pools, local variables, and operand stacks for each scope.  Maintaining a snapshot of the interpreter's memory allows for extensive analysis and comparison of program states between execution steps.
 
 \section{Implementation Details}
-The interpreter is implemented entirely in Java 11, with an emphasis on modularity and extensibility. Key implementation details for the major components are described in the following subsections.
+The interpreter has been completely implemented in Java 11, with a focus on modularity and extensibility. The following subsections cover key implementation details for the primary components.
 
-\subsection{Lexer and Parser}
-The lexer's role is to convert raw IJVM source code into tokens. The design choices in \texttt{IJVMLexer.g4} include:
+\subsection{Lexers and Parsers}
+ The lexer transforms raw IJVM source code into tokens.  The design features in \texttt{IJVMLexer.g4} include:
 
 \begin{itemize}
-    \item \textbf{Case Insensitivity}: IJVM instructions such as \texttt{IADD}, \texttt{POP}, and \texttt{GOTO} accept both uppercase and lowercase representations, though the interpreter normalizes them to uppercase.
-    \item \textbf{Flexible Number Formats}: The lexer supports decimal, hexadecimal (prefixed with \texttt{0x} or \texttt{0X}), and octal (prefixed with \texttt{o} or \texttt{O}) formats.
-    \item \textbf{Identifier Rules}: Identifiers for variables, constants, methods, and labels begin with a letter or underscore, followed by any combination of alphanumeric characters, underscores, or hyphens.
-    \item \textbf{Whitespace and Comment Handling}: Whitespace and comments (using both \texttt{//} and \texttt{;} styles) are ignored, simplifying tokenization. Newlines are explicitly tokenized (as \texttt{NEWLINE}) to aid in block delimitation and error reporting.
-    \item \textbf{Block Keyword Recognition}: Specific tokens such as \texttt{.constant}, \texttt{.end-constant}, \texttt{.main}, \texttt{.end-main}, \texttt{.method}, \texttt{.end-method}, \texttt{.var}, and \texttt{.end-var} structure the IJVM program into well-defined sections.
+    \item \textbf{Case Insensitivity}: All instructions can have both uppercase and lowercase representations, still, the interpreter normalizes them to uppercase.
+    \item \textbf{Flexible Number Formats}: The lexer accepts decimal, hexadecimal (prefixed with \texttt{0x} or \texttt{0X}), and octal (prefixed with \texttt{O}) byte rapresentations.
+	\item \textbf{Identifier Rules}: Identifiers for variables, constants, methods, and labels start with a letter or underscore, followed by any combination of alphanumeric characters, underscores, or hyphens.
+    \item \textbf{Whitespace and Comment Handling}: Tokenization is simplified by ignoring whitespace and comments (using \texttt{//} and \texttt{;} styles). Newlines are explicitly tokenized (as \texttt{NEWLINE}) to help with block delimitation and error reporting.
+    \item \textbf{Block Keyword Recognition}: Tokens like \texttt{.constant}, \texttt{.end-constant}, \texttt{.main}, \texttt{.end-main}, \texttt{.method}, \texttt{.end-method}, \texttt{.var}, and \texttt{.end-var} (which are part of the IJVM specification) aid in organizing the IJVM program into well-defined sections.
 \end{itemize}
 
-The parser (\texttt{IJVMParser.g4}) uses these tokens to construct an AST, following a clear hierarchical structure that organizes IJVM programs into blocks (constant, main, method, and var). Decisions made include:
+The parser uses these tokens to create the AST, which has a clear hierarchical structure that divides IJVM programs into blocks (constant, main, method, and var). The decisions made include:
 
 \begin{itemize}
-    \item \textbf{Hierarchical Structure}: The grammar defines a program as a sequence of blocks, ensuring clear separation between the main execution code and method definitions.
-    \item \textbf{Instruction Classification}: Instructions are grouped by their expected argument patterns (e.g., zero-argument, byte-argument, variable-argument), simplifying subsequent semantic analysis.
-    \item \textbf{Label and Method Declarations}: Labels (e.g., \texttt{loop:}) and methods (with optional parameters) are parsed to ensure clear error reporting and unambiguous interpretation.
-    \item \textbf{Robust Error Recovery}: The grammar includes rules (such as requiring \texttt{NEWLINE} tokens after block terminations) that facilitate graceful error recovery.
+    \item \textbf{Hierarchical Structure}: The language defines a program as a sequence of blocks, clearly separating the main execution code and method definitions.
+    \item \textbf{Instruction Classification}: Instructions are classified based on expected argument patterns (e.g., zero-argument, byte-argument, variable-argument), allowing for successive semantic analysis.
+    \item \textbf{Label and Method Declarations}: Labels (e.g., \texttt{loop:}) and methods (with optional parameters) are parsed to provide clear error reporting and unambiguous interpretation.
+    \item \textbf{Robust Error Identification}: The grammar includes rules (e.g., requiring \texttt{NEWLINE} tokens after block terminations) that aid in the pin-pointing of mistakes throught the IJVM source code.
 \end{itemize}
 
 \subsection{Semantic Analysis}
-The semantic analyzer validates the AST through a multi-pass approach:
+ The semantic analyzer evaluates the AST using a multi-pass technique.
 
-\subsubsection{Declaration Registration}
-In the first pass, the analyzer registers all declarations for constants, variables, and methods. Constants are stored in a global scope, while variables and method parameters are scoped to their respective blocks. This registration ensures that symbols are defined before use.
+ \subsubsection{Declaration Registration}
+ During the first pass, the analyzer registers all declarations of constants, variables, and methods.  Constants are maintained in a global scope, whereas variables and method parameters are scoped to specific blocks.  The registration process guarantees that symbols are defined upfront.
 
-\subsubsection{Label Scanning}
-The second pass catalogues all labels (targets for jump instructions such as \texttt{GOTO} and \texttt{IFEQ}) within each scope. Labels are confined to their respective method or main block to avoid cross-scope conflicts.
+ \subsubsection{Label Scanning}
+ The second pass catalogs all labels (targets of jump instructions like \texttt{GOTO} and \texttt{IFEQ}) within each scope.  Labels are limited to their correct method or main block to avoid cross-scope issues.
 
 \subsubsection{Instruction and Expression Validation}
-During the final pass, the analyzer verifies:
-\begin{itemize}
-    \item That all variables are properly initialized before use.
-    \item That method invocations target declared methods with the correct number of parameters.
-    \item That jump targets (labels) are defined within the same scope.
+During the final pass, the analyzer ensures that: 
+\begin{itemize} 
+	\item All variables are properly initialized before use. 
+	\item Method invocations target declared methods with the correct amount of parameters. 
+	\item Jump targets (labels) are defined inside the same scope.
 \end{itemize}
 
 \subsubsection{Symbol Table Management}
-The \texttt{SymbolTable} class maintains a hierarchical record of symbols with details such as initialization status and parameter counts. This detailed bookkeeping allows the analyzer to produce precise error messages and warnings.
+The \texttt{SymbolTable} class keeps a hierarchical record of symbols, including details like initialization status and parameter counts. This extensive recordkeeping enables the analyzer to generate precise error messages and warnings.
 
-\subsubsection{Error and Warning Reporting}
-Errors (e.g., undeclared variables, misuse of jump targets) are reported with specific source code locations to aid debugging. Non-critical issues, such as unused symbols, are flagged as warnings to help users refine their code.
+\subsubsection{Error and Warning Reporting} 
+Errors (e.g., undeclared variables, misuse of jump targets) are reported with precise source code locations for debugging. Non-critical errors, such as unnecessary symbols, are displayed as warnings to assist users in refining their code.
 
 \subsection{Interpreter}
-The interpreter executes the IJVM code by traversing the validated AST. It supports a specific subset of instructions, including:
+The interpreter executes the IJVM code by traversing the validated AST. It supports a specific set of instructions, which include:
 
 \begin{itemize}
     \item \textbf{Arithmetic Operations}: \texttt{IADD}, \texttt{ISUB}, \texttt{IAND}, \texttt{IOR}.
     \item \textbf{Stack Manipulations}: \texttt{POP}, \texttt{SWAP}, \texttt{DUP}.
     \item \textbf{Control Flow}: \texttt{GOTO}, \texttt{IFEQ}, \texttt{IFLT}, \texttt{IF\_ICMPEQ}.
-    \item \textbf{Method Invocation}: \texttt{INVOKEVIRTUAL} (with limited support).
+    \item \textbf{Method Invocation}: \texttt{INVOKEVIRTUAL}.
 \end{itemize}
 
-Table~\ref{tab:instructions} details the instruction specifications and operands. The interpreter maintains a stack-based execution model, where each execution scope has its own operand stack and local variables. The stack operates on signed 32-bit integers.
+Table~\ref{tab:instructions} details the instruction specifications and operands supported by this tool. The interpreter maintains a stack-based execution model, where each execution scope has its own operand stack and local variables. The stack operates on signed 32-bit integers.
 
 \subsubsection{Supported Instructions}
 \begin{table}[H]
@@ -164,7 +167,7 @@ The IJVM interpreter is packaged as a command-line tool. The main application is
 Usage: java -jar antlr-impl.jar [options]
 Options:
   -parse, -interpret       Specify the mode
-  -ijvm                    Specify the language
+  -ijvm,                   Specify the language
   -file <path>             Path to the source file
   -d, -debug               Enable debug mode
   -tracer                  Enable tracer for step-by-step execution view
@@ -179,21 +182,19 @@ Options:
     \item \texttt{-tracer}: Enable the tracer to view detailed step-by-step execution states, including memory dumps and stack contents.
 \end{itemize}
 
-These options support both code validation and execution, providing detailed error and warning reports for debugging and learning.
-
 \section{Testing}
-Comprehensive unit tests have been developed to verify the correct operation of the parser, semantic analyzer, and interpreter. These tests are contained in the following classes:
+Comprehensive unit tests have been written to ensure that the parser, semantic analyzer, and interpreter are functioning properly. These tests are found in the following classes:
 
-\begin{itemize}
-    \item \texttt{IJVMProgramTest.java}: Evaluates the interpreter's handling of IJVM instructions, including arithmetic operations, stack manipulation, control flow, and method invocation. Test cases address scenarios such as stack underflow, variable initialization, and looping constructs.
-    \item \texttt{SemanticAnalyzerTest.java}: Checks that the semantic analyzer detects issues like the use of uninitialized variables, undeclared method calls, and improper references.
-    \item \texttt{ParserErrorTest.java}: Validates that the parser correctly identifies syntax errors, such as malformed instructions or missing block terminators.
+\begin{itemize} 
+	\item \texttt{IJVMProgramTest.java}: Evaluates the interpreter's computation of IJVM instructions, including arithmetic operations, stack management, control flow, and method calls. Test cases address scenarios such as stack underflow, variable initialization, and looping constructs.
+     \item \texttt{SemanticAnalyzerTest.java}: Ensures that the semantic analyzer finds errors such as uninitialized variables, undeclared method calls, and invalid references.
+     \item \texttt{ParserErrorTest.java}: Ensures the parser finds syntax issues, such as invalid instructions or missing block terminations.
 \end{itemize}
 
-These tests enhance confidence in the interpreter's functionality, although the implementation remains primarily an educational tool.
+These tests increase confidence in the interpreter's functionality, but the implementation remains primarily an educational and experimental tool.
 
 \section{Summary}
-In this paper, we have presented the design and implementation of an interpreter for a selected subset of the IJVM specification. The system is structured as a modular pipeline, featuring a lexer and parser built with ANTLR, a semantic analyzer for robust validation, and a direct execution engine implemented in Java. While the interpreter does not aim for full compliance with the entire IJVM standard, it provides a practical and accessible platform for learning virtual machine architecture, language processing, and execution models. Through its clear structure and comprehensive error reporting, the interpreter serves as a valuable educational resource and a foundation for further exploration or extension.
+In this paper, we describe the design and implementation of an interpreter for a subset of the IJVM specification. The system is designed as a modular pipeline, with an ANTLR-based lexer and parser, a semantic analyzer for source code validation, and a Java 11 direct execution engine. While the interpreter does not seek to be in full compliance with the IJVM specification, it does provide a useful and accessible platform for learning virtual machine architecture, language processing, and execution models through its clear structure and comprehensive error/warning reporting capabilities.
 
 \section*{References}
 \begin{itemize}
