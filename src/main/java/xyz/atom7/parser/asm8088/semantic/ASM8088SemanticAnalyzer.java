@@ -199,14 +199,16 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     private void checkForUndefinedSymbols()
     {
         var undefinedSymbols = symbolTable.getUndefinedSymbols();
-        for (var symbol : undefinedSymbols) {
+        for (var symbol : undefinedSymbols)
+        {
             // We don't have token information here, so we'll use null for the token
             addError("Symbol '" + symbol.getName() + "' is referenced but never defined", null);
         }
 
         // Check for unreferenced labels (warning)
         var unreferencedSymbols = symbolTable.getUnreferencedSymbols();
-        for (var symbol : unreferencedSymbols) {
+        for (var symbol : unreferencedSymbols)
+        {
             if (symbol.getType() == ASM8088SymbolTable.SymbolType.LABEL) {
                 addWarning("Label '" + symbol.getName() + "' is defined but never referenced", null);
             }
@@ -221,11 +223,14 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitProgram(asm8088Parser.ProgramContext ctx)
     {
-        if (ctx.line() != null) {
-            for (asm8088Parser.LineContext lineCtx : ctx.line()) {
-                visit(lineCtx);
-            }
+        if (ctx.line() == null) {
+            return null;
         }
+
+        for (asm8088Parser.LineContext lineCtx : ctx.line()) {
+            visit(lineCtx);
+        }
+
         return null;
     }
 
@@ -240,13 +245,23 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
         // Process each type of line
         if (ctx.assignment() != null) {
             visit(ctx.assignment());
-        } else if (ctx.section() != null) {
+            return null;
+        }
+        
+        if (ctx.section() != null) {
             visit(ctx.section());
-        } else if (ctx.labelDecl() != null) {
+            return null;
+        }
+        
+        if (ctx.labelDecl() != null) {
             visit(ctx.labelDecl());
-        } else if (ctx.statement() != null) {
+            return null;
+        }
+        
+        if (ctx.statement() != null) {
             visit(ctx.statement());
         }
+        
         return null;
     }
 
@@ -258,15 +273,7 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitSection(asm8088Parser.SectionContext ctx)
     {
-        String section = null;
-        
-        if (ctx.DATA() != null) {
-            section = ".DATA";
-        } else if (ctx.TEXT() != null) {
-            section = ".TEXT";
-        } else if (ctx.BSS() != null) {
-            section = ".BSS";
-        }
+        String section = getSectionName(ctx);
         
         if (section != null) {
             if (isDeclarationPass) {
@@ -278,6 +285,20 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
         return null;
     }
 
+    private String getSectionName(asm8088Parser.SectionContext ctx)
+    {
+        if (ctx.DATA() != null) {
+            return ".DATA";
+        }
+        if (ctx.TEXT() != null) {
+            return ".TEXT";
+        }
+        if (ctx.BSS() != null) {
+            return ".BSS";
+        }
+        return null;
+    }
+
     /**
      * Visit the assignment context
      * 
@@ -286,40 +307,43 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitAssignment(asm8088Parser.AssignmentContext ctx)
     {
-        if (isDeclarationPass) {
-            String id = ctx.ID().getText();
-            
-            // Check if the symbol already exists
-            if (symbolTable.symbolExists(id)) {
-                addError("Symbol '" + id + "' is already defined", ctx.ID().getSymbol());
-                return null;
-            }
-            
-            // Parse the value
-            int value;
-            try {
-                if (ctx.HEX() != null) {
-                    String hexValue = ctx.HEX().getText();
-                    if ((!hexValue.startsWith("0x") && !hexValue.startsWith("0X")) || hexValue.length() <= 2) {
-                        throw new NumberFormatException("Invalid hex format");
-                    }
+        if (!isDeclarationPass) {
+            return null;
+        }
 
-                    hexValue = hexValue.substring(2);
-                    value = Integer.parseInt(hexValue, 16);
-                } else {
-                    String numValue = ctx.NUM().getText();
-                    value = Integer.parseInt(numValue);
-                }
-                
-                // Add to symbol table
-                symbolTable.addConstant(id, value);
-            } catch (NumberFormatException e) {
-                addError("Invalid number format for constant '" + id + "'", 
-                          ctx.HEX() != null ? ctx.HEX().getSymbol() : ctx.NUM().getSymbol());
-            }
+        String id = ctx.ID().getText();
+        
+        // Check if the symbol already exists
+        if (symbolTable.symbolExists(id)) {
+            addError("Symbol '" + id + "' is already defined", ctx.ID().getSymbol());
+            return null;
+        }
+        
+        // Parse the value
+        try {
+            int value = parseAssignmentValue(ctx);
+            symbolTable.addConstant(id, value);
+        } catch (NumberFormatException e) {
+            addError("Invalid number format for constant '" + id + "'", 
+                      ctx.HEX() != null ? ctx.HEX().getSymbol() : ctx.NUM().getSymbol());
         }
         
         return null;
+    }
+
+    private int parseAssignmentValue(asm8088Parser.AssignmentContext ctx) throws NumberFormatException
+    {
+        if (ctx.HEX() != null) {
+            String hexValue = ctx.HEX().getText();
+            if ((!hexValue.startsWith("0x") && !hexValue.startsWith("0X")) || hexValue.length() <= 2) {
+                throw new NumberFormatException("Invalid hex format");
+            }
+            hexValue = hexValue.substring(2);
+            return Integer.parseInt(hexValue, 16);
+        }
+        
+        String numValue = ctx.NUM().getText();
+        return Integer.parseInt(numValue);
     }
 
     /**
@@ -330,19 +354,21 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitLabelDecl(asm8088Parser.LabelDeclContext ctx)
     {
-        if (isDeclarationPass) {
-            String label = ctx.ID().getText();
-            
-            // Check if the label is already defined
-            ASM8088SymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(label);
-            if (entry != null && entry.isDefined() && entry.getType() == ASM8088SymbolTable.SymbolType.LABEL) {
-                addError("Label '" + label + "' is already defined", ctx.ID().getSymbol());
-                return null;
-            }
-            
-            // Add to symbol table
-            symbolTable.addLabel(label);
+        if (!isDeclarationPass) {
+            return null;
         }
+
+        String label = ctx.ID().getText();
+        
+        // Check if the label is already defined
+        ASM8088SymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(label);
+        if (entry != null && entry.isDefined() && entry.getType() == ASM8088SymbolTable.SymbolType.LABEL) {
+            addError("Label '" + label + "' is already defined", ctx.ID().getSymbol());
+            return null;
+        }
+        
+        // Add to symbol table
+        symbolTable.addLabel(label);
         
         return null;
     }
@@ -357,7 +383,10 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     {
         if (ctx.instruction() != null) {
             visit(ctx.instruction());
-        } else if (ctx.directive() != null) {
+            return null;
+        }
+        
+        if (ctx.directive() != null) {
             visit(ctx.directive());
         }
         
@@ -372,20 +401,22 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitInstruction(asm8088Parser.InstructionContext ctx)
     {
-        if (isVerificationPass && ctx.mnemonic() != null) {
-            String mnemonic = ctx.mnemonic().getText();
-            boolean isByteInstruction = byteInstructions.contains(mnemonic.toUpperCase());
-            boolean isJumpInstruction = jumpInstructions.contains(mnemonic.toUpperCase());
-            
-            // For instructions with operands, verify operand compatibility
-            if (ctx.operandList() != null) {
-                visitOperandList(ctx.operandList(), isByteInstruction);
-            }
-            
-            // Check jump instructions in the correct section
-            if (isJumpInstruction && currentSection != null && !currentSection.equals(".TEXT")) {
-                addWarning("Jump/call instruction used outside .TEXT section", ctx.mnemonic().getStart());
-            }
+        if (!isVerificationPass || ctx.mnemonic() == null) {
+            return null;
+        }
+
+        String mnemonic = ctx.mnemonic().getText();
+        boolean isByteInstruction = byteInstructions.contains(mnemonic.toUpperCase());
+        boolean isJumpInstruction = jumpInstructions.contains(mnemonic.toUpperCase());
+        
+        // For instructions with operands, verify operand compatibility
+        if (ctx.operandList() != null) {
+            visitOperandList(ctx.operandList(), isByteInstruction);
+        }
+        
+        // Check jump instructions in the correct section
+        if (isJumpInstruction && currentSection != null && !currentSection.equals(".TEXT")) {
+            addWarning("Jump/call instruction used outside .TEXT section", ctx.mnemonic().getStart());
         }
         
         return null;
@@ -399,35 +430,48 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
      */
     private Void visitOperandList(asm8088Parser.OperandListContext ctx, boolean isByteInstruction)
     {
-        if (isVerificationPass && ctx.operand() != null) {
-            for (asm8088Parser.OperandContext opCtx : ctx.operand()) {
-                // Check register size compatibility
-                if (opCtx.register() != null) {
-                    String register = opCtx.register().getText();
-                    boolean isByteRegister = byteRegisters.contains(register.toUpperCase());
-                    
-                    if (isByteInstruction && !isByteRegister) {
-                        addError("Byte instruction requires byte register, found '" + register + "'", 
-                                 opCtx.register().getStart());
-                    } else if (!isByteInstruction && isByteRegister) {
-                        addError("Word instruction requires word register, found '" + register + "'", 
-                                 opCtx.register().getStart());
-                    }
-                }
-                
-                // Check for undefined symbols in expressions
-                if (opCtx.expr() != null) {
-                    visitExpr(opCtx.expr());
-                }
-                
-                // Check memory operands
-                if (opCtx.memory() != null) {
-                    visitMemory(opCtx.memory());
-                }
+        if (!isVerificationPass || ctx.operand() == null) {
+            return null;
+        }
+
+        for (asm8088Parser.OperandContext opCtx : ctx.operand())
+        {
+            // Check register size compatibility
+            if (opCtx.register() != null) {
+                checkRegisterCompatibility(opCtx, isByteInstruction);
+                continue;
+            }
+
+            // Check for undefined symbols in expressions
+            if (opCtx.expr() != null) {
+                visitExpr(opCtx.expr());
+                continue;
+            }
+
+            // Check memory operands
+            if (opCtx.memory() != null) {
+                visitMemory(opCtx.memory());
             }
         }
 
         return null;
+    }
+
+    private void checkRegisterCompatibility(asm8088Parser.OperandContext opCtx, boolean isByteInstruction)
+    {
+        String register = opCtx.register().getText().toUpperCase();
+        boolean isByteRegister = byteRegisters.contains(register);
+
+        if (isByteInstruction && !isByteRegister) {
+            addError("Byte instruction requires byte register, found '" + register + "'",
+                    opCtx.register().getStart());
+            return;
+        }
+        
+        if (!isByteInstruction && isByteRegister) {
+            addError("Word instruction requires word register, found '" + register + "'",
+                    opCtx.register().getStart());
+        }
     }
 
     /**
@@ -438,33 +482,41 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitExpr(asm8088Parser.ExprContext ctx)
     {
-        if (isVerificationPass) {
-            // In expressions, there can be multiple IDs
-            // The parser grammar shows expressions like: ID (PLUS|MINUS) ID
-            var idNodes = ctx.ID();
+        if (!isVerificationPass) {
+            return null;
+        }
 
-            if (idNodes == null || idNodes.isEmpty()) {
-                return null;
+        // In expressions, there can be multiple IDs
+        // The parser grammar shows expressions like: ID (PLUS|MINUS) ID
+        var idNodes = ctx.ID();
+
+        if (idNodes == null || idNodes.isEmpty()) {
+            return null;
+        }
+
+        for (org.antlr.v4.runtime.tree.TerminalNode idNode : idNodes)
+        {
+            if (idNode == null) {
+                continue;
             }
 
-            for (org.antlr.v4.runtime.tree.TerminalNode idNode : idNodes) {
-                if (idNode == null) {
-                    continue;
-                }
-
-                String id = idNode.getText();
-
-                // Reference the symbol
-                symbolTable.referenceSymbol(id);
-
-                // Check if the symbol is defined
-                if (!symbolTable.isSymbolDefined(id)) {
-                    addWarning("Symbol '" + id + "' used in expression may not be defined", idNode.getSymbol());
-                }
-            }
+            processExpressionId(idNode);
         }
         
         return null;
+    }
+
+    private void processExpressionId(org.antlr.v4.runtime.tree.TerminalNode idNode)
+    {
+        String id = idNode.getText();
+
+        // Reference the symbol
+        symbolTable.referenceSymbol(id);
+
+        // Check if the symbol is defined
+        if (!symbolTable.isSymbolDefined(id)) {
+            addWarning("Symbol '" + id + "' used in expression may not be defined", idNode.getSymbol());
+        }
     }
 
     /**
@@ -475,30 +527,29 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitMemory(asm8088Parser.MemoryContext ctx)
     {
-        if (isVerificationPass) {
-            // Check for a named location (ID token) in memory reference
-            boolean hasNamedLocation = false;
+        if (!isVerificationPass) {
+            return null;
+        }
 
-            // In the memory context, there can be ID tokens in different positions
-            // Handle each possible position individually based on the grammar
-            org.antlr.v4.runtime.tree.TerminalNode idNode = ctx.ID();
-            if (idNode != null) {
-                String id = idNode.getText();
-                hasNamedLocation = true;
-                
-                // Reference the symbol
-                symbolTable.referenceSymbol(id);
-                
-                // Check if the symbol is defined
-                if (!symbolTable.isSymbolDefined(id)) {
-                    addWarning("Symbol '" + id + "' used in memory reference may not be defined", idNode.getSymbol());
-                }
-            }
-            
-            // Check if memory access is in the correct section for data
-            if (hasNamedLocation && currentSection != null && !currentSection.equals(".DATA")) {
-                addWarning("Memory access to named location should be in .DATA section", ctx.getStart());
-            }
+        // Check for a named location (ID token) in memory reference
+        org.antlr.v4.runtime.tree.TerminalNode idNode = ctx.ID();
+        if (idNode == null) {
+            return null;
+        }
+
+        String id = idNode.getText();
+        
+        // Reference the symbol
+        symbolTable.referenceSymbol(id);
+        
+        // Check if the symbol is defined
+        if (!symbolTable.isSymbolDefined(id)) {
+            addWarning("Symbol '" + id + "' used in memory reference may not be defined", idNode.getSymbol());
+        }
+        
+        // Check if memory access is in the correct section for data
+        if (currentSection != null && !currentSection.equals(".DATA")) {
+            addWarning("Memory access to named location should be in .DATA section", ctx.getStart());
         }
         
         return null;
@@ -512,24 +563,43 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
     @Override
     public Void visitDirective(asm8088Parser.DirectiveContext ctx)
     {
-        if (isVerificationPass) {
-            // Check section compatibility
-            if (currentSection != null) {
-                if (ctx.BYTE() != null && !currentSection.equals(".DATA")) {
-                    addWarning(".BYTE directive should be in .DATA section", ctx.BYTE().getSymbol());
-                } else if (ctx.ASCII() != null && !currentSection.equals(".DATA")) {
-                    addWarning(".ASCII directive should be in .DATA section", ctx.ASCII().getSymbol());
-                } else if (ctx.SPACE() != null && !currentSection.equals(".DATA") && !currentSection.equals(".BSS")) {
-                    addWarning(".SPACE directive should be in .DATA or .BSS section", ctx.SPACE().getSymbol());
-                }
-            } else {
-                // No section defined but directive being used
-                if (ctx.BYTE() != null || ctx.ASCII() != null || ctx.SPACE() != null) {
-                    addWarning("Directive used without a section defined", ctx.getStart());
-                }
-            }
+        if (!isVerificationPass) {
+            return null;
+        }
+
+        // Check section compatibility
+        if (currentSection != null) {
+            checkDirectiveSectionCompatibility(ctx);
+            return null;
+        }
+
+        // No section defined but directive being used
+        if (hasDirective(ctx)) {
+            addWarning("Directive used without a section defined", ctx.getStart());
         }
         
         return null;
+    }
+
+    private void checkDirectiveSectionCompatibility(asm8088Parser.DirectiveContext ctx)
+    {
+        if (ctx.BYTE() != null && !currentSection.equals(".DATA")) {
+            addWarning(".BYTE directive should be in .DATA section", ctx.BYTE().getSymbol());
+            return;
+        }
+        
+        if (ctx.ASCII() != null && !currentSection.equals(".DATA")) {
+            addWarning(".ASCII directive should be in .DATA section", ctx.ASCII().getSymbol());
+            return;
+        }
+        
+        if (ctx.SPACE() != null && !currentSection.equals(".DATA") && !currentSection.equals(".BSS")) {
+            addWarning(".SPACE directive should be in .DATA or .BSS section", ctx.SPACE().getSymbol());
+        }
+    }
+
+    private boolean hasDirective(asm8088Parser.DirectiveContext ctx)
+    {
+        return ctx.BYTE() != null || ctx.ASCII() != null || ctx.SPACE() != null;
     }
 } 

@@ -4,7 +4,7 @@
 // x = 1
 // y = 2
 // z = 3
-// output = 19
+// output = 0
 //
 .constant
     OBJREF 0x40
@@ -21,6 +21,8 @@
     .end-var
 
     LDC_W OBJREF
+
+    LDC_W OBJREF
     INVOKEVIRTUAL input
     ISTORE x
     LDC_W OBJREF
@@ -31,29 +33,30 @@
     ISTORE z
 
     LDC_W OBJREF
-        LDC_W OBJREF
-        ILOAD x
-        ILOAD z
-        BIPUSH 1
-        IADD
-        INVOKEVIRTUAL fun2
-        ILOAD y
-        BIPUSH 1
-        IADD
-        INVOKEVIRTUAL fun1
+    ILOAD x
+    ILOAD z
+    BIPUSH 1
+    IADD
+    INVOKEVIRTUAL fun2
+    LDC_W OBJREF
+    ILOAD y
+    BIPUSH 1
+    IADD
+    INVOKEVIRTUAL fun1
 
-        LDC_W OBJREF
-        ILOAD x
-        BIPUSH 3
-        IADD
-        ILOAD y
-        INVOKEVIRTUAL fun2
-        IADD
+    LDC_W OBJREF
+    ILOAD x
+    BIPUSH 3
+    IADD
+    ILOAD y
+    INVOKEVIRTUAL fun2
+    IADD
 
-        LDC_W OBJREF
-        ILOAD z
-        BIPUSH 3
-        INVOKEVIRTUAL div
+    LDC_W OBJREF
+    ILOAD z
+    BIPUSH 3
+    INVOKEVIRTUAL div
+
     IADD
     INVOKEVIRTUAL print
     HALT

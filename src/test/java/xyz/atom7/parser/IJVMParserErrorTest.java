@@ -277,7 +277,8 @@ public class IJVMParserErrorTest
         var list = dir.listFiles((dir1, name) -> name.endsWith(".jas"));
         assertNotNull(list);
 
-        for (File file : list) {
+        for (File file : list)
+        {
             List<ParserError> errors = analyzeCodeFromPath(file.getAbsolutePath());
             assertTrue(errors.isEmpty(), "Valid example program should have no parser errors");
         }

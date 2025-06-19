@@ -35,8 +35,7 @@ public class Utils
     {
         StringBuilder result = new StringBuilder();
 
-        for (String string : code)
-        {
+        for (String string : code) {
             result.append(string).append("\n");
         }
 

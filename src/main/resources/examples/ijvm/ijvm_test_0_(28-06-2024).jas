@@ -1,10 +1,10 @@
-// Link: https://web.unica.it/unica/protected/380792/0/def/ref/MAT380784/
+// Link: https://web.unica.it/unica/protected/461075/0/def/ref/MAT461069/
 //
 // Esempio:
-// x = 8
-// y = 4
+// x = 15
+// y = 5
 // z = 6
-// output = 8
+// output = 93
 //
 .constant
 	OBJREF 0x40
@@ -15,138 +15,133 @@
 	.var
 		x
 		y
-        z
-        a
+		z
 	.end-var
 
-	LDC_W OBJREF
+    LDC_W OBJREF
 	INVOKEVIRTUAL input
 	ISTORE x
-
 	LDC_W OBJREF
 	INVOKEVIRTUAL input
 	ISTORE y
-
-    LDC_W OBJREF
+	LDC_W OBJREF
 	INVOKEVIRTUAL input
 	ISTORE z
 
 	LDC_W OBJREF
-    ILOAD z
-    LDC_W OBJREF
-    ILOAD y
-    BIPUSH 2
-    INVOKEVIRTUAL mod
-    IADD
+		LDC_W OBJREF
+		ILOAD z
+		ILOAD y
+		ILOAD x
+		DUP
+		IADD
+		INVOKEVIRTUAL fun1
+		LDC_W OBJREF
+		ILOAD x
+		BIPUSH 1
+		ISUB
+			LDC_W OBJREF
+			ILOAD z
+			ILOAD x
+			ILOAD y
+			INVOKEVIRTUAL fun1
+		INVOKEVIRTUAL fun2
+		IADD
 
-    ILOAD x
-    BIPUSH 1
-    ISUB
-    INVOKEVIRTUAL fun1
-    ISTORE a
-
-    ILOAD a
-    LDC_W OBJREF
-    ILOAD x
-    ILOAD y
-    BIPUSH 1
-    ISUB
-    INVOKEVIRTUAL fun2
-    IADD
-
-	LDC_W OBJREF
-	SWAP
 	INVOKEVIRTUAL print
-
 	HALT
+
 .end-main
 
-.method fun2(a, b)
-    LDC_W OBJREF
-    ILOAD a
-    BIPUSH 3
-    INVOKEVIRTUAL mod
-    IFEQ then
-    GOTO end-if
-    then:
+.method fun1(a,b,c)
 
-    LDC_W OBJREF
-    ILOAD b
-    LDC_W OBJREF
-    ILOAD b
-    BIPUSH 2
-    INVOKEVIRTUAL div
-    INVOKEVIRTUAL fun2
-    IRETURN
+	while:
+	ILOAD b
+	ILOAD a
+	IADD
+	ILOAD c
+	ISUB
+	IFLT continuo
+	GOTO fine
+	continuo:
+	BIPUSH 8
+	ILOAD a
+	ISUB
+	IFLT while
+	LDC_W OBJREF
+	BIPUSH 3
+	ILOAD c
+	INVOKEVIRTUAL mul
+	ISTORE a
+	BIPUSH 7
+	ILOAD b
+	ISUB
+	IFLT while
+	LDC_W OBJREF
+	ILOAD c
+	BIPUSH 2
+	INVOKEVIRTUAL mod
+	ISTORE b
+	GOTO while
 
-    end-if:
+	fine:
+	ILOAD a
+	ILOAD b
+	IADD
+	BIPUSH 2
+	ISUB
+	IRETURN
 
-    while:
-    ILOAD b
-    ILOAD a
-    ISUB
-    IFLT end-while
-
-    IINC a 3
-    IINC b 1
-
-    GOTO while
-    end-while:
-
-    IINC b -1
-    ILOAD b
-    IRETURN
 .end-method
 
-.method fun1(a, b)
-    ILOAD b
-    ILOAD a
-    IADD
-    BIPUSH 7
-    ISUB
-    IFLT else
+.method fun2(a,b)
 
-    BIPUSH 2
-    LDC_W OBJREF
-    ILOAD a
-    BIPUSH 2
-    INVOKEVIRTUAL div
-    ISUB
-    IFLT end-if
-    IINC a 1
+	.var
+		i
+	.end-var
 
-    LDC_W OBJREF
-    ILOAD a
-    BIPUSH 4
-    INVOKEVIRTUAL mod
-    ISTORE b
+	BIPUSH 0
+	ISTORE i
 
-    GOTO end-if
-    else:
-    while:
+	for:
+	BIPUSH 5
+	ILOAD i
+	ISUB
+	DUP
+	IFLT fine
+	IFEQ fine
+	BIPUSH 2
+	ISTORE a
+	while:
+	ILOAD b
+	LDC_W OBJREF
+	ILOAD a
+	BIPUSH 3
+	INVOKEVIRTUAL div
+	ISUB
+	DUP
+	IFLT incremento
+	IFEQ incremento
+	IINC a 2
+	IINC b -1
+	GOTO while
+	incremento:
+	IINC i 1
+	GOTO for
 
-    ILOAD b
-    BIPUSH 1
-    IADD
-    ILOAD a
-    ISUB
-    DUP
-    IFEQ end-if
-    IFLT end-if
-
-    IINC a 1
-
-    GOTO while
-
-    end-if:
-    LDC_W OBJREF
-    ILOAD a
-    BIPUSH 1
-    INVOKEVIRTUAL fun2
-    ILOAD b
-    IADD
-    IRETURN
+	fine:
+	LDC_W OBJREF
+	ILOAD a
+	BIPUSH 3
+	INVOKEVIRTUAL mul
+	BIPUSH 1
+	ISUB
+	IRETURN
 .end-method
+
+
+
+
 
 .method mul(i, j)
     ILOAD j

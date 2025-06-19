@@ -238,7 +238,8 @@ public class ASM8088SymbolTable extends SymbolTable
     {
         List<SymbolEntry> unreferenced = new ArrayList<>();
         
-        for (SymbolEntry entry : symbols.values()) {
+        for (SymbolEntry entry : symbols.values())
+        {
             // Skip predefined registers and sections
             if (entry.getType() == SymbolType.REGISTER || entry.getType() == SymbolType.SECTION) {
                 continue;
@@ -259,7 +260,8 @@ public class ASM8088SymbolTable extends SymbolTable
     {
         List<SymbolEntry> undefined = new ArrayList<>();
         
-        for (SymbolEntry entry : symbols.values()) {
+        for (SymbolEntry entry : symbols.values())
+        {
             if (entry.isReferenced() && !entry.isDefined()) {
                 undefined.add(entry);
             }

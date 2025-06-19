@@ -122,7 +122,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             IJVMScope newScopeInstance = new IJVMScope(targetScopeBlueprint);
             callStack.push(newScopeInstance);
 
-            Iterator<Map.Entry<String, Integer>> iterator = newScopeInstance.getArguments().entrySet().iterator();
+            var iterator = newScopeInstance.getArguments().entrySet().iterator();
             for (int i = 0; i < argCount; i++) {
                 newScopeInstance.getLocals().put(iterator.next().getKey(), args[i]);
             }
@@ -293,8 +293,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         IJVMScope mainScope = new IJVMScope("main");
         mainScope.populateLocalsFromVarBlock(mainBlock.varBlock(0));
 
-        for (var statement : mainBlock.statement())
-        {
+        for (var statement : mainBlock.statement()) {
             mainScope.addInstruction(statement);
         }
 
@@ -309,8 +308,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             scope.populateLocalsFromMethodParamList(methodDecl);
             scope.populateLocalsFromVarBlock(methodBlock.varBlock(0));
 
-            for (var statement : methodBlock.statement())
-            {
+            for (var statement : methodBlock.statement()) {
                 scope.addInstruction(statement);
             }
 
@@ -325,9 +323,8 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             debugln(" ");
         }
 
-        for (var elem : constantPool.entrySet()) {
+        for (var elem : constantPool.entrySet())
             debugln("const: " + elem.getKey() + " >> " + elem.getValue());
-        }
     }
 
     @Override

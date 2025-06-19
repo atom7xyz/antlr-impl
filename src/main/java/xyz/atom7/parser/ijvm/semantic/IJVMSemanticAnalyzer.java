@@ -143,59 +143,81 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     public Void visitProgram(IJVMParser.ProgramContext ctx)
     {
         if (isDeclarationPass) {
-            // First pass: Process declarations
-            if (ctx.constantBlock() != null) {
-                visit(ctx.constantBlock());
-            }
-
-            // Register all method declarations first
-            if (ctx.methodBlock() != null) {
-                for (IJVMParser.MethodBlockContext methodCtx : ctx.methodBlock()) {
-                    processMethodDeclaration(methodCtx);
-                }
-            }
+            processDeclarationPass(ctx);
+            return null;
         }
-        else if (isLabelScanPass) {
-            // Scan for labels in main block
-            if (ctx.mainBlock() != null) {
-                currentMethod = "main";
-                methodLabels.put(currentMethod, new HashSet<>());
-                symbolTable.enterScope("main");
-                scanLabelsMain(ctx.mainBlock());
-                symbolTable.exitScope();
-            }
-
-            // Scan for labels in all methods
-            if (ctx.methodBlock() != null) {
-                for (IJVMParser.MethodBlockContext methodCtx : ctx.methodBlock()) {
-                    scanLabelsMethod(methodCtx);
-                }
-            }
+        
+        if (isLabelScanPass) {
+            processLabelScanPass(ctx);
+            return null;
         }
-        else {
-            // Main analysis pass
-            if (ctx.mainBlock() != null) {
-                currentMethod = "main";
-                symbolTable.enterScope("main");
-                // Reset instruction tracking for main block
-                instructionsStarted = false;
-                stackSize = 0;
-                visit(ctx.mainBlock());
-                symbolTable.exitScope();
-            }
-
-            if (ctx.methodBlock() != null) {
-                for (IJVMParser.MethodBlockContext methodCtx : ctx.methodBlock())
-                {
-                    // Reset instruction tracking for each method
-                    instructionsStarted = false;
-                    stackSize = 0;
-                    processMethodImplementation(methodCtx);
-                }
-            }
-        }
-
+        
+        // Main analysis pass
+        processAnalysisPass(ctx);
         return null;
+    }
+
+    private void processDeclarationPass(IJVMParser.ProgramContext ctx)
+    {
+        // First pass: Process declarations
+        if (ctx.constantBlock() != null) {
+            visit(ctx.constantBlock());
+        }
+
+        // Register all method declarations first
+        if (ctx.methodBlock() == null) {
+            return;
+        }
+        
+        for (IJVMParser.MethodBlockContext methodCtx : ctx.methodBlock()) {
+            processMethodDeclaration(methodCtx);
+        }
+    }
+
+    private void processLabelScanPass(IJVMParser.ProgramContext ctx)
+    {
+        // Scan for labels in main block
+        if (ctx.mainBlock() != null) {
+            currentMethod = "main";
+            methodLabels.put(currentMethod, new HashSet<>());
+            symbolTable.enterScope("main");
+            scanLabelsMain(ctx.mainBlock());
+            symbolTable.exitScope();
+        }
+
+        // Scan for labels in all methods
+        if (ctx.methodBlock() == null) {
+            return;
+        }
+        
+        for (IJVMParser.MethodBlockContext methodCtx : ctx.methodBlock()) {
+            scanLabelsMethod(methodCtx);
+        }
+    }
+
+    private void processAnalysisPass(IJVMParser.ProgramContext ctx)
+    {
+        if (ctx.mainBlock() != null) {
+            currentMethod = "main";
+            symbolTable.enterScope("main");
+            // Reset instruction tracking for main block
+            instructionsStarted = false;
+            stackSize = 0;
+            visit(ctx.mainBlock());
+            symbolTable.exitScope();
+        }
+
+        if (ctx.methodBlock() == null) {
+            return;
+        }
+        
+        for (IJVMParser.MethodBlockContext methodCtx : ctx.methodBlock())
+        {
+            // Reset instruction tracking for each method
+            instructionsStarted = false;
+            stackSize = 0;
+            processMethodImplementation(methodCtx);
+        }
     }
 
     /**
@@ -206,7 +228,6 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     private void processMethodDeclaration(IJVMParser.MethodBlockContext ctx)
     {
         IJVMParser.MethodDeclContext methodDeclCtx = ctx.methodDecl();
-
         if (methodDeclCtx == null) {
             return;
         }
@@ -221,22 +242,25 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
 
         // Process method parameters
         List<String> parameters = new ArrayList<>();
-        if (methodDeclCtx.paramList() != null) {
-            IJVMParser.ParamListContext paramListCtx = methodDeclCtx.paramList();
+        if (methodDeclCtx.paramList() == null) {
+            symbolTable.addMethod(methodName, parameters);
+            return;
+        }
+        
+        IJVMParser.ParamListContext paramListCtx = methodDeclCtx.paramList();
 
-            // Check for duplicate parameter names
-            Set<String> paramSet = new HashSet<>();
-            for (int i = 0; i < paramListCtx.ID().size(); i++)
-            {
-                String paramName = paramListCtx.ID(i).getText();
-                if (paramSet.contains(paramName)) {
-                    addError("Duplicate parameter name '" + paramName + "' in method '" + methodName + "'",
-                            paramListCtx.ID(i).getSymbol());
-                }
-                else {
-                    paramSet.add(paramName);
-                    parameters.add(paramName);
-                }
+        // Check for duplicate parameter names
+        Set<String> paramSet = new HashSet<>();
+        for (int i = 0; i < paramListCtx.ID().size(); i++)
+        {
+            String paramName = paramListCtx.ID(i).getText();
+            if (paramSet.contains(paramName)) {
+                addError("Duplicate parameter name '" + paramName + "' in method '" + methodName + "'",
+                        paramListCtx.ID(i).getSymbol());
+            }
+            else {
+                paramSet.add(paramName);
+                parameters.add(paramName);
             }
         }
 
@@ -252,7 +276,6 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     private void scanLabelsMethod(IJVMParser.MethodBlockContext ctx)
     {
         IJVMParser.MethodDeclContext methodDeclCtx = ctx.methodDecl();
-
         if (methodDeclCtx == null) {
             return;
         }
@@ -322,7 +345,6 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     private void processMethodImplementation(IJVMParser.MethodBlockContext ctx)
     {
         IJVMParser.MethodDeclContext methodDeclCtx = ctx.methodDecl();
-
         if (methodDeclCtx == null) {
             return;
         }
@@ -334,15 +356,7 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
         symbolTable.enterScope(methodName);
 
         // Add parameters as initialized variables in the method scope
-        if (methodDeclCtx.paramList() != null) {
-            IJVMParser.ParamListContext paramListCtx = methodDeclCtx.paramList();
-            for (int i = 0; i < paramListCtx.ID().size(); i++)
-            {
-                String paramName = paramListCtx.ID(i).getText();
-                symbolTable.addVariable(paramName);
-                symbolTable.markVariableInitialized(paramName);
-            }
-        }
+        addParametersAsVariables(methodDeclCtx);
 
         // First check if there are any instructions before var blocks
         checkVarBlocksAtTopMethod(ctx);
@@ -357,15 +371,36 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
         checkMethodFlowsPaths(ctx, methodDeclCtx);
 
         // Process all statements normally
-        List<IJVMParser.StatementContext> statements = ctx.statement();
-        if (statements != null) {
-            for (IJVMParser.StatementContext stmt : statements) {
-                visit(stmt);
-            }
-        }
+        processStatements(ctx.statement());
 
         // Exit method scope
         symbolTable.exitScope();
+    }
+
+    private void addParametersAsVariables(IJVMParser.MethodDeclContext methodDeclCtx)
+    {
+        if (methodDeclCtx.paramList() == null) {
+            return;
+        }
+        
+        IJVMParser.ParamListContext paramListCtx = methodDeclCtx.paramList();
+        for (int i = 0; i < paramListCtx.ID().size(); i++)
+        {
+            String paramName = paramListCtx.ID(i).getText();
+            symbolTable.addVariable(paramName);
+            symbolTable.markVariableInitialized(paramName);
+        }
+    }
+
+    private void processStatements(List<IJVMParser.StatementContext> statements)
+    {
+        if (statements == null) {
+            return;
+        }
+        
+        for (IJVMParser.StatementContext stmt : statements) {
+            visit(stmt);
+        }
     }
 
     /**
@@ -383,43 +418,61 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
         }
 
         // Get only statements with instructions
-        List<IJVMParser.StatementContext> instructionStatements = new ArrayList<>();
-        for (IJVMParser.StatementContext stmt : statements) {
-            if (stmt.instruction() != null) {
-                instructionStatements.add(stmt);
-            }
-        }
+        List<IJVMParser.StatementContext> instructionStatements = getInstructionStatements(statements);
 
         if (instructionStatements.isEmpty()) {
             addError("Method must end with IRETURN", methodDeclCtx.getStop());
             return;
         }
 
-        // Check if the last instruction is IRETURN
+        checkIReturnPlacement(instructionStatements, statements, methodDeclCtx);
+        checkUnreachableCodeAfterIReturn(instructionStatements);
+    }
+
+    private List<IJVMParser.StatementContext> getInstructionStatements(List<IJVMParser.StatementContext> statements)
+    {
+        List<IJVMParser.StatementContext> instructionStatements = new ArrayList<>();
+        for (IJVMParser.StatementContext stmt : statements)
+        {
+            if (stmt.instruction() != null) {
+                instructionStatements.add(stmt);
+            }
+        }
+        return instructionStatements;
+    }
+
+    private void checkIReturnPlacement(List<IJVMParser.StatementContext> instructionStatements, 
+                                     List<IJVMParser.StatementContext> allStatements,
+                                     IJVMParser.MethodDeclContext methodDeclCtx)
+    {
         IJVMParser.StatementContext lastInstrStmt = instructionStatements.get(instructionStatements.size() - 1);
         boolean lastIsIReturn = hasIReturn(lastInstrStmt);
 
-        if (!lastIsIReturn) {
-            // Check if there are labels that end with IRETURN
-            boolean foundReturnInLabel = false;
-            for (IJVMParser.StatementContext stmt : statements)
-            {
-                if (hasIReturn(stmt) && !stmt.equals(lastInstrStmt)) {
-                    foundReturnInLabel = true;
-                    // Change to warning if IRETURN exists in other code paths
-                    addWarning("Method does not end with IRETURN in main path, but has IRETURN in other paths",
-                              methodDeclCtx.getStop());
-                    break;
-                }
-            }
+        if (lastIsIReturn) {
+            return;
+        }
 
-            // If no IRETURN found anywhere, it's an error
-            if (!foundReturnInLabel) {
-                addError("Method must end with IRETURN", methodDeclCtx.getStop());
+        // Check if there are labels that end with IRETURN
+        boolean foundReturnInLabel = false;
+        for (IJVMParser.StatementContext stmt : allStatements)
+        {
+            if (hasIReturn(stmt) && !stmt.equals(lastInstrStmt)) {
+                foundReturnInLabel = true;
+                // Change to warning if IRETURN exists in other code paths
+                addWarning("Method does not end with IRETURN in main path, but has IRETURN in other paths",
+                          methodDeclCtx.getStop());
+                break;
             }
         }
 
-        // Check for unreachable code after IRETURN
+        // If no IRETURN found anywhere, it's an error
+        if (!foundReturnInLabel) {
+            addError("Method must end with IRETURN", methodDeclCtx.getStop());
+        }
+    }
+
+    private void checkUnreachableCodeAfterIReturn(List<IJVMParser.StatementContext> instructionStatements)
+    {
         for (int i = 0; i < instructionStatements.size() - 1; i++)
         {
             IJVMParser.StatementContext stmt = instructionStatements.get(i);
@@ -439,7 +492,6 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
      */
     private <T extends ParserRuleContext> void checkVarBlocksAtTop(T ctx)
     {
-        // Find if any instruction comes before a var block
         List<IJVMParser.StatementContext> statements;
         List<IJVMParser.VarBlockContext> varBlocks;
 
@@ -471,38 +523,41 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
         }
 
         // Map instruction positions
-        for (IJVMParser.StatementContext stmt : statements) {
+        for (IJVMParser.StatementContext stmt : statements)
+        {
             if (stmt.instruction() != null) {
                 instructionPositions.put(stmt.getStart().getLine(), stmt.getStart());
             }
         }
 
         // Find min instruction position and min var block position
-        int minInstructionLine = Integer.MAX_VALUE;
-        int minVarBlockLine = Integer.MAX_VALUE;
-
-        for (int line : instructionPositions.keySet()) {
-            if (line < minInstructionLine) {
-                minInstructionLine = line;
-            }
-        }
-
-        for (int line : varBlockPositions.keySet()) {
-            if (line < minVarBlockLine) {
-                minVarBlockLine = line;
-            }
-        }
+        int minInstructionLine = getMinLine(instructionPositions);
+        int minVarBlockLine = getMinLine(varBlockPositions);
 
         if (minInstructionLine >= minVarBlockLine) {
             return;
         }
 
         // If any instruction comes before any var block, report error
-        // Find the var block that comes after an instruction
+        checkVarBlocksAfterInstructions(varBlocks, minInstructionLine);
+    }
+
+    private int getMinLine(Map<Integer, Token> positions)
+    {
+        int minLine = Integer.MAX_VALUE;
+        for (int line : positions.keySet()) {
+            if (line < minLine) {
+                minLine = line;
+            }
+        }
+        return minLine;
+    }
+
+    private void checkVarBlocksAfterInstructions(List<IJVMParser.VarBlockContext> varBlocks, int minInstructionLine)
+    {
         for (IJVMParser.VarBlockContext varBlock : varBlocks)
         {
             Token start = varBlock.getStart();
-
             if (start.getLine() > minInstructionLine) {
                 addError(".var blocks must be defined at the top of methods/main before any instructions", start);
             }
@@ -557,10 +612,10 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
      */
     private boolean labelExistsInMethod(String labelName)
     {
-        if (currentMethod != null && methodLabels.containsKey(currentMethod)) {
-            return methodLabels.get(currentMethod).contains(labelName);
+        if (currentMethod == null || !methodLabels.containsKey(currentMethod)) {
+            return false;
         }
-        return false;
+        return methodLabels.get(currentMethod).contains(labelName);
     }
 
     /**
@@ -591,42 +646,47 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
         for (int i = 0; i < ctx.constantDecl().size(); i++)
         {
             IJVMParser.ConstantDeclContext constCtx = ctx.constantDecl(i);
-
             if (constCtx == null) {
                 continue;
             }
 
-            String constName = constCtx.ID().getText();
-
-            // Check for duplicate constant declarations
-            if (symbolTable.symbolExists(constName)) {
-                addError("Constant '" + constName + "' is already defined", constCtx.ID().getSymbol());
-                continue;
-            }
-
-            // Parse the numeric value
-            try {
-                int value;
-                String numText = constCtx.NUM().getText();
-
-                if (numText.startsWith("0x") || numText.startsWith("0X")) {
-                    value = Integer.parseInt(numText.substring(2), 16);
-                }
-                else if (numText.startsWith("o") || numText.startsWith("O")) {
-                    value = Integer.parseInt(numText.substring(1), 8);
-                }
-                else {
-                    value = Integer.parseInt(numText);
-                }
-
-                symbolTable.addConstant(constName, value);
-            }
-            catch (NumberFormatException e) {
-                addError("Invalid number format for constant '" + constName + "'", constCtx.NUM().getSymbol());
-            }
+            processConstantDeclaration(constCtx);
         }
 
         return null;
+    }
+
+    private void processConstantDeclaration(IJVMParser.ConstantDeclContext constCtx)
+    {
+        String constName = constCtx.ID().getText();
+
+        // Check for duplicate constant declarations
+        if (symbolTable.symbolExists(constName)) {
+            addError("Constant '" + constName + "' is already defined", constCtx.ID().getSymbol());
+            return;
+        }
+
+        // Parse the numeric value
+        try {
+            int value = parseConstantValue(constCtx);
+            symbolTable.addConstant(constName, value);
+        }
+        catch (NumberFormatException e) {
+            addError("Invalid number format for constant '" + constName + "'", constCtx.NUM().getSymbol());
+        }
+    }
+
+    private int parseConstantValue(IJVMParser.ConstantDeclContext constCtx) throws NumberFormatException
+    {
+        String numText = constCtx.NUM().getText();
+
+        if (numText.startsWith("0x") || numText.startsWith("0X")) {
+            return Integer.parseInt(numText.substring(2), 16);
+        }
+        if (numText.startsWith("o") || numText.startsWith("O")) {
+            return Integer.parseInt(numText.substring(1), 8);
+        }
+        return Integer.parseInt(numText);
     }
 
     /**
@@ -637,32 +697,24 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitMainBlock(IJVMParser.MainBlockContext ctx)
     {
-        if (isLabelScanPass) {
-            // Label scanning is handled separately
-            return null;
+        if (isLabelScanPass || isDeclarationPass) {
+            return null; // Label scanning is handled separately
         }
 
-        if (!isDeclarationPass) {
-            // Set current method to main for proper label lookups
-            currentMethod = "main";
-            
-            // Check if var blocks are at the top
-            checkMainVarBlocksAtTopMain(ctx);
+        // Set current method to main for proper label lookups
+        currentMethod = "main";
+        
+        // Check if var blocks are at the top
+        checkMainVarBlocksAtTopMain(ctx);
 
-            // Process var blocks first
-            processVarBlocks(ctx.varBlock());
+        // Process var blocks first
+        processVarBlocks(ctx.varBlock());
 
-            // Mark that instructions have started
-            instructionsStarted = true;
+        // Mark that instructions have started
+        instructionsStarted = true;
 
-            // Process statements
-            List<IJVMParser.StatementContext> statements = ctx.statement();
-            if (statements != null) {
-                for (IJVMParser.StatementContext stmtCtx : statements) {
-                    visit(stmtCtx);
-                }
-            }
-        }
+        // Process statements
+        processStatements(ctx.statement());
 
         return null;
     }
@@ -685,43 +737,52 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitVarBlock(IJVMParser.VarBlockContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            // Check if instructions have already started
-            if (instructionsStarted) {
-                addError(".var blocks must be defined at the top of methods/main before any instructions", ctx.getStart());
-                return null;
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
+        }
+
+        // Check if instructions have already started
+        if (instructionsStarted) {
+            addError(".var blocks must be defined at the top of methods/main before any instructions", ctx.getStart());
+            return null;
+        }
+
+        // Process all variable declarations
+        for (int i = 0; i < ctx.varDecl().size(); i++)
+        {
+            IJVMParser.VarDeclContext varCtx = ctx.varDecl(i);
+            if (varCtx == null) {
+                continue;
             }
 
-            // Process all variable declarations
-            for (int i = 0; i < ctx.varDecl().size(); i++)
-            {
-                IJVMParser.VarDeclContext varCtx = ctx.varDecl(i);
-
-                if (varCtx == null) {
-                    continue;
-                }
-
-                var id = varCtx.ID();
-                String varName = id.getText();
-
-                // Check for duplicate variable declarations in the current scope
-                IJVMSymbolTable.SymbolEntry existingSymbol = symbolTable.lookupSymbol(varName);
-                if (existingSymbol != null) {
-                    // Check if the conflicting symbol is a method parameter
-                    if (existingSymbol.getType() == IJVMSymbolTable.SymbolType.VARIABLE && existingSymbol.isInitialized() && 
-                            currentMethod != null && currentMethod != "main") {
-                        // Method parameters are added as initialized variables, so we can use this to detect conflicts
-                        addError("Variable '" + varName + "' in .var block conflicts with a method parameter", id.getSymbol());
-                    } else {
-                        addError("Variable '" + varName + "' is already defined in this scope", id.getSymbol());
-                    }
-                } else {
-                    symbolTable.addVariable(varName);
-                }
-            }
+            processVariableDeclaration(varCtx);
         }
 
         return null;
+    }
+
+    private void processVariableDeclaration(IJVMParser.VarDeclContext varCtx)
+    {
+        var id = varCtx.ID();
+        String varName = id.getText();
+
+        // Check for duplicate variable declarations in the current scope
+        IJVMSymbolTable.SymbolEntry existingSymbol = symbolTable.lookupSymbol(varName);
+        if (existingSymbol == null) {
+            symbolTable.addVariable(varName);
+            return;
+        }
+
+        // Check if the conflicting symbol is a method parameter
+        if (existingSymbol.getType() == IJVMSymbolTable.SymbolType.VARIABLE && 
+            existingSymbol.isInitialized() && 
+            currentMethod != null && 
+            !currentMethod.equals("main")) {
+            // Method parameters are added as initialized variables, so we can use this to detect conflicts
+            addError("Variable '" + varName + "' in .var block conflicts with a method parameter", id.getSymbol());
+        } else {
+            addError("Variable '" + varName + "' is already defined in this scope", id.getSymbol());
+        }
     }
 
     /**
@@ -743,40 +804,53 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitVarArgInstr(IJVMParser.VarArgInstrContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            String varName = ctx.ID().getText();
-            IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
+        }
 
-            if (entry == null) {
-                addError("Variable '" + varName + "' is not defined", ctx.ID().getSymbol());
-            }
-            else if (entry.getType() != IJVMSymbolTable.SymbolType.VARIABLE) {
-                addError("Symbol '" + varName + "' is not a variable", ctx.ID().getSymbol());
-            }
-            else {
-                // Handle ILOAD/ISTORE semantics
-                if (ctx.ILOAD() != null) {
-                    // Check if variable is initialized before loading
-                    if (!entry.isInitialized()) {
-                        addError("Variable '" + varName + "' may not have been initialized before use", ctx.ID().getSymbol());
-                    }
-                    // ILOAD pushes a value onto the stack
-                    stackSize++;
-                }
-                else if (ctx.ISTORE() != null) {
-                    // ISTORE requires a value on the stack
-                    if (stackSize <= 0) {
-                        addWarning("Stack underflow: ISTORE requires a value on the stack", ctx.ISTORE().getSymbol());
-                    } else {
-                        stackSize--;
-                        // Mark the variable as initialized
-                        symbolTable.markVariableInitialized(varName);
-                    }
-                }
-            }
+        String varName = ctx.ID().getText();
+        IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
+
+        if (entry == null) {
+            addError("Variable '" + varName + "' is not defined", ctx.ID().getSymbol());
+            return null;
+        }
+
+        if (entry.getType() != IJVMSymbolTable.SymbolType.VARIABLE) {
+            addError("Symbol '" + varName + "' is not a variable", ctx.ID().getSymbol());
+            return null;
+        }
+
+        // Handle ILOAD/ISTORE semantics
+        if (ctx.ILOAD() != null) {
+            handleILoad(entry, varName, ctx);
+        } else if (ctx.ISTORE() != null) {
+            handleIStore(varName, ctx);
         }
 
         return null;
+    }
+
+    private void handleILoad(IJVMSymbolTable.SymbolEntry entry, String varName, IJVMParser.VarArgInstrContext ctx)
+    {
+        // Check if variable is initialized before loading
+        if (!entry.isInitialized()) {
+            addError("Variable '" + varName + "' may not have been initialized before use", ctx.ID().getSymbol());
+        }
+        // ILOAD pushes a value onto the stack
+        stackSize++;
+    }
+
+    private void handleIStore(String varName, IJVMParser.VarArgInstrContext ctx)
+    {
+        // ISTORE requires a value on the stack
+        if (stackSize <= 0) {
+            addWarning("Stack underflow: ISTORE requires a value on the stack", ctx.ISTORE().getSymbol());
+        } else {
+            stackSize--;
+            // Mark the variable as initialized
+            symbolTable.markVariableInitialized(varName);
+        }
     }
 
     /**
@@ -787,35 +861,37 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitMethodArgInstr(IJVMParser.MethodArgInstrContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            String methodName = ctx.ID().getText();
-
-            // Check if method exists
-            if (!symbolTable.methodExists(methodName)) {
-                addError("Method '" + methodName + "' is not defined", ctx.ID().getSymbol());
-            }
-            else {
-                int paramCount = symbolTable.getMethodParameterCount(methodName);
-
-                // Check if there are enough values on the stack for method parameters and object reference
-                if (stackSize < paramCount + 1) { // +1 for object reference
-                    addWarning("Stack underflow: Not enough values on stack for method call '" + methodName +
-                            "'. Expected " + (paramCount + 1) + " but have " + stackSize, ctx.INVOKEVIRTUAL().getSymbol());
-                }
-                else {
-                    // Check if there's an object reference on the stack
-                    // This is a simplified check - in a real implementation you might track the types of values on the stack
-                    boolean hasObjectRef = stackSize >= paramCount + 1;
-                    if (!hasObjectRef) {
-                        addWarning("Object reference is required for method call '" + methodName + "'",
-                                ctx.INVOKEVIRTUAL().getSymbol());
-                    }
-
-                    // Adjust stack: remove params and objref, push result
-                    stackSize = stackSize - paramCount - 1 + 1; // -params, -objref, +result
-                }
-            }
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
         }
+
+        String methodName = ctx.ID().getText();
+
+        // Check if method exists
+        if (!symbolTable.methodExists(methodName)) {
+            addError("Method '" + methodName + "' is not defined", ctx.ID().getSymbol());
+            return null;
+        }
+
+        int paramCount = symbolTable.getMethodParameterCount(methodName);
+
+        // Check if there are enough values on the stack for method parameters and object reference
+        if (stackSize < paramCount + 1) { // +1 for object reference
+            addWarning("Stack underflow: Not enough values on stack for method call '" + methodName +
+                    "'. Expected " + (paramCount + 1) + " but have " + stackSize, ctx.INVOKEVIRTUAL().getSymbol());
+            return null;
+        }
+
+        // Check if there's an object reference on the stack
+        // This is a simplified check - in a real implementation you might track the types of values on the stack
+        boolean hasObjectRef = stackSize >= paramCount + 1;
+        if (!hasObjectRef) {
+            addWarning("Object reference is required for method call '" + methodName + "'",
+                    ctx.INVOKEVIRTUAL().getSymbol());
+        }
+
+        // Adjust stack: remove params and objref, push result
+        stackSize = stackSize - paramCount - 1 + 1; // -params, -objref, +result
 
         return null;
     }
@@ -828,21 +904,25 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitConstantArgInstr(IJVMParser.ConstantArgInstrContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            String constName = ctx.ID().getText();
-            IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(constName);
-
-            if (entry == null) {
-                addError("Constant '" + constName + "' is not defined", ctx.ID().getSymbol());
-            }
-            else if (entry.getType() != IJVMSymbolTable.SymbolType.CONSTANT) {
-                addError("Symbol '" + constName + "' is not a constant", ctx.ID().getSymbol());
-            }
-            else {
-                // LDC_W pushes a value onto the stack
-                stackSize++;
-            }
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
         }
+
+        String constName = ctx.ID().getText();
+        IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(constName);
+
+        if (entry == null) {
+            addError("Constant '" + constName + "' is not defined", ctx.ID().getSymbol());
+            return null;
+        }
+
+        if (entry.getType() != IJVMSymbolTable.SymbolType.CONSTANT) {
+            addError("Symbol '" + constName + "' is not a constant", ctx.ID().getSymbol());
+            return null;
+        }
+
+        // LDC_W pushes a value onto the stack
+        stackSize++;
 
         return null;
     }
@@ -855,36 +935,45 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitJumpInstr(IJVMParser.JumpInstrContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            String labelName = ctx.ID().getText();
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
+        }
 
-            // Check if the label exists in the current method
-            boolean labelExists = labelExistsInMethod(labelName);
-            if (!labelExists) {
-                addError("Label '" + labelName + "' is not defined in this scope", ctx.ID().getSymbol());
-            }
+        String labelName = ctx.ID().getText();
 
-            // Check stack requirements for conditional jumps
-            if (ctx.IFLT() != null || ctx.IFEQ() != null) {
-                if (stackSize < 1) {
-                    addWarning("Stack underflow: Conditional jump requires a value on the stack",
-                            ctx.IFLT() != null ? ctx.IFLT().getSymbol() : ctx.IFEQ().getSymbol());
-                }
-                else {
-                    stackSize--; // Pop value for comparison
-                }
-            }
-            else if (ctx.IF_ICMPEQ() != null) {
-                if (stackSize < 2) {
-                    addWarning("Stack underflow: IF_ICMPEQ requires more (two?) values on the stack", ctx.IF_ICMPEQ().getSymbol());
-                }
-                else {
-                    stackSize -= 2; // Pop two values for comparison
-                }
-            }
+        // Check if the label exists in the current method
+        boolean labelExists = labelExistsInMethod(labelName);
+        if (!labelExists) {
+            addError("Label '" + labelName + "' is not defined in this scope", ctx.ID().getSymbol());
+        }
+
+        // Check stack requirements for conditional jumps
+        if (ctx.IFLT() != null || ctx.IFEQ() != null) {
+            handleSingleValueJump(ctx);
+        } else if (ctx.IF_ICMPEQ() != null) {
+            handleTwoValueJump(ctx);
         }
 
         return null;
+    }
+
+    private void handleSingleValueJump(IJVMParser.JumpInstrContext ctx)
+    {
+        if (stackSize < 1) {
+            addWarning("Stack underflow: Conditional jump requires a value on the stack",
+                    ctx.IFLT() != null ? ctx.IFLT().getSymbol() : ctx.IFEQ().getSymbol());
+        } else {
+            stackSize--; // Pop value for comparison
+        }
+    }
+
+    private void handleTwoValueJump(IJVMParser.JumpInstrContext ctx)
+    {
+        if (stackSize < 2) {
+            addWarning("Stack underflow: IF_ICMPEQ requires more (two?) values on the stack", ctx.IF_ICMPEQ().getSymbol());
+        } else {
+            stackSize -= 2; // Pop two values for comparison
+        }
     }
 
     /**
@@ -895,66 +984,100 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitZeroArgInstr(IJVMParser.ZeroArgInstrContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            // Handle stack effects of zero-argument instructions
-            if (ctx.IADD() != null || ctx.ISUB() != null || ctx.IAND() != null || ctx.IOR() != null) {
-                // Binary operations require two values on the stack
-                if (stackSize < 2) {
-                    addWarning("Stack underflow: Binary operation requires more (two?) values on the stack",
-                            ctx.getStart());
-                }
-                else {
-                    stackSize--; // Pop two, push one result
-                }
-            }
-            else if (ctx.POP() != null) {
-                // POP removes one value from the stack
-                if (stackSize < 1) {
-                    addWarning("Stack underflow: POP requires a value on the stack", ctx.POP().getSymbol());
-                }
-                else {
-                    stackSize--;
-                }
-            }
-            else if (ctx.SWAP() != null) {
-                // SWAP requires two values on the stack
-                if (stackSize < 2) {
-                    addWarning("Stack underflow: SWAP requires more (two?) values on the stack", ctx.SWAP().getSymbol());
-                }
-                // Stack size remains the same
-            }
-            else if (ctx.DUP() != null) {
-                // DUP requires one value and adds one
-                if (stackSize < 1) {
-                    addWarning("Stack underflow: DUP requires a value on the stack", ctx.DUP().getSymbol());
-                }
-                else {
-                    stackSize++;
-                }
-            }
-            else if (ctx.IN() != null) {
-                // IN adds a value to the stack
-                stackSize++;
-            }
-            else if (ctx.OUT() != null) {
-                // OUT pops a value from the stack
-                if (stackSize < 1) {
-                    addWarning("Stack underflow: OUT requires a value on the stack", ctx.OUT().getSymbol());
-                } else {
-                    stackSize--;
-                }
-            }
-            else if (ctx.IRETURN() != null) {
-                // IRETURN requires a value on the stack
-                if (stackSize < 1) {
-                    addWarning("Stack underflow: IRETURN requires a value on the stack", ctx.IRETURN().getSymbol());
-                }
-                // Reset stack after return
-                stackSize = 0;
-            }
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
+        }
+
+        // Handle stack effects of zero-argument instructions
+        if (ctx.IADD() != null || ctx.ISUB() != null || ctx.IAND() != null || ctx.IOR() != null) {
+            handleBinaryOperation(ctx);
+        }
+        else if (ctx.POP() != null) {
+            handlePop(ctx);
+        }
+        else if (ctx.SWAP() != null) {
+            handleSwap(ctx);
+        }
+        else if (ctx.DUP() != null) {
+            handleDup(ctx);
+        }
+        else if (ctx.IN() != null) {
+            handleIn();
+        }
+        else if (ctx.OUT() != null) {
+            handleOut(ctx);
+        }
+        else if (ctx.IRETURN() != null) {
+            handleIReturn(ctx);
         }
 
         return null;
+    }
+
+    private void handleBinaryOperation(IJVMParser.ZeroArgInstrContext ctx)
+    {
+        // Binary operations require two values on the stack
+        if (stackSize < 2) {
+            addWarning("Stack underflow: Binary operation requires more (two?) values on the stack",
+                    ctx.getStart());
+        } else {
+            stackSize--; // Pop two, push one result
+        }
+    }
+
+    private void handlePop(IJVMParser.ZeroArgInstrContext ctx)
+    {
+        // POP removes one value from the stack
+        if (stackSize < 1) {
+            addWarning("Stack underflow: POP requires a value on the stack", ctx.POP().getSymbol());
+        } else {
+            stackSize--;
+        }
+    }
+
+    private void handleSwap(IJVMParser.ZeroArgInstrContext ctx)
+    {
+        // SWAP requires two values on the stack
+        if (stackSize < 2) {
+            addWarning("Stack underflow: SWAP requires more (two?) values on the stack", ctx.SWAP().getSymbol());
+        }
+        // Stack size remains the same
+    }
+
+    private void handleDup(IJVMParser.ZeroArgInstrContext ctx)
+    {
+        // DUP requires one value and adds one
+        if (stackSize < 1) {
+            addWarning("Stack underflow: DUP requires a value on the stack", ctx.DUP().getSymbol());
+        } else {
+            stackSize++;
+        }
+    }
+
+    private void handleIn()
+    {
+        // IN adds a value to the stack
+        stackSize++;
+    }
+
+    private void handleOut(IJVMParser.ZeroArgInstrContext ctx)
+    {
+        // OUT pops a value from the stack
+        if (stackSize < 1) {
+            addWarning("Stack underflow: OUT requires a value on the stack", ctx.OUT().getSymbol());
+        } else {
+            stackSize--;
+        }
+    }
+
+    private void handleIReturn(IJVMParser.ZeroArgInstrContext ctx)
+    {
+        // IRETURN requires a value on the stack
+        if (stackSize < 1) {
+            addWarning("Stack underflow: IRETURN requires a value on the stack", ctx.IRETURN().getSymbol());
+        }
+        // Reset stack after return
+        stackSize = 0;
     }
 
     /**
@@ -965,32 +1088,42 @@ public class IJVMSemanticAnalyzer extends IJVMParserBaseVisitor<Void>
     @Override
     public Void visitByteArgInstr(IJVMParser.ByteArgInstrContext ctx)
     {
-        if (!isDeclarationPass && !isLabelScanPass) {
-            if (ctx.BIPUSH() != null) {
-                // BIPUSH pushes a byte value onto the stack
-                stackSize++;
-            }
-            else if (ctx.IINC() != null) {
-                // IINC needs a valid variable
-                String varName = ctx.ID().getText();
-                IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
+        if (isDeclarationPass || isLabelScanPass) {
+            return null;
+        }
 
-                if (entry == null) {
-                    addError("Variable '" + varName + "' is not defined", ctx.ID().getSymbol());
-                }
-                else if (entry.getType() != IJVMSymbolTable.SymbolType.VARIABLE) {
-                    addError("Symbol '" + varName + "' is not a variable", ctx.ID().getSymbol());
-                }
-                else if (!entry.isInitialized()) {
-                    addError("Variable '" + varName + "' may not have been initialized before increment",
-                            ctx.ID().getSymbol());
-                }
-                else {
-                    // IINC doesn't change the stack
-                }
-            }
+        if (ctx.BIPUSH() != null) {
+            // BIPUSH pushes a byte value onto the stack
+            stackSize++;
+        }
+        else if (ctx.IINC() != null) {
+            handleIInc(ctx);
         }
 
         return null;
+    }
+
+    private void handleIInc(IJVMParser.ByteArgInstrContext ctx)
+    {
+        // IINC needs a valid variable
+        String varName = ctx.ID().getText();
+        IJVMSymbolTable.SymbolEntry entry = symbolTable.lookupSymbol(varName);
+
+        if (entry == null) {
+            addError("Variable '" + varName + "' is not defined", ctx.ID().getSymbol());
+            return;
+        }
+
+        if (entry.getType() != IJVMSymbolTable.SymbolType.VARIABLE) {
+            addError("Symbol '" + varName + "' is not a variable", ctx.ID().getSymbol());
+            return;
+        }
+
+        if (!entry.isInitialized()) {
+            addError("Variable '" + varName + "' may not have been initialized before increment",
+                    ctx.ID().getSymbol());
+        }
+
+        // IINC doesn't change the stack
     }
 }

@@ -100,15 +100,15 @@ public class IJVMTracer extends Tracer<IJVMProgram<IJVMInstruction>, IJVMInstruc
         printColored("\tScope Stacks (from Call Stack)", "", ColorCode.BLUE);
         if (snapshot.getCallStack().isEmpty()) {
             printColored("\t\t", "empty", ColorCode.BLUE);
+            return;
         }
-        else {
-            for (IJVMScope scope : snapshot.getCallStack())
-            {
-                var stack = scope.getStack();
 
-                String stackStr = stack.isEmpty() ? "[]" : stack.toString();
-                printColored("\t\t" + scope.getName(), "\t" + stackStr, ColorCode.BLUE);
-            }
+        for (IJVMScope scope : snapshot.getCallStack())
+        {
+            var stack = scope.getStack();
+
+            String stackStr = stack.isEmpty() ? "[]" : stack.toString();
+            printColored("\t\t" + scope.getName(), "\t" + stackStr, ColorCode.BLUE);
         }
     }
 

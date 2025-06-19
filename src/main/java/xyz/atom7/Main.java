@@ -67,7 +67,8 @@ public class Main
     {
         Map<String, String> options = new HashMap<>();
         
-        for (int i = 0; i < args.length; i++) {
+        for (int i = 0; i < args.length; i++)
+        {
             String arg = args[i];
             
             switch (arg) {
@@ -196,9 +197,8 @@ public class Main
             debugln("NONE");
         }
         
-        for (ParserError message : parserError) {
+        for (ParserError message : parserError)
             debugln(message.getFormattedMessage());
-        }
 
         debugln("--------------------------------");
         debug("Semantic warnings: ");
@@ -207,9 +207,8 @@ public class Main
             debugln("NONE");
         }
         
-        for (SemanticWarning message : semanticWarning) {
+        for (SemanticWarning message : semanticWarning)
             debugln(message.getFormattedMessage());
-        }
 
         debugln("--------------------------------");
         debug("Semantic errors: ");
@@ -218,9 +217,9 @@ public class Main
             debugln("NONE");
         }
         
-        for (SemanticError message : semanticError) {
+        for (SemanticError message : semanticError)
             debugln(message.getFormattedMessage());
-        }
+
         debugln("--------------------------------");
     }
 

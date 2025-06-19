@@ -1,10 +1,10 @@
-// Link: https://web.unica.it/unica/protected/292827/0/def/ref/MAT271841/
+// Link: https://web.unica.it/unica/protected/378911/0/def/ref/MAT378903/
 //
 // Esempio:
-// x = 1
-// y = 2
-// z = 3
-// output = 4
+// x = 0
+// y = 3
+// z = 2
+// output = 6
 //
 .constant
 	OBJREF 0x40
@@ -12,140 +12,171 @@
 .end-constant
 
 .main
-    .var
-        x
-        y
-        z
+	.var
+		x
+		y
+		z
         a
-    .end-var
+	.end-var
 
-    LDC_W OBJREF
-    INVOKEVIRTUAL input
-    ISTORE x
+	LDC_W OBJREF
+	INVOKEVIRTUAL input
+	ISTORE x
 
-    LDC_W OBJREF
-    INVOKEVIRTUAL input
-    ISTORE y
+	LDC_W OBJREF
+	INVOKEVIRTUAL input
+	ISTORE y
 
-    LDC_W OBJREF
-    INVOKEVIRTUAL input
-    ISTORE z
+	LDC_W OBJREF
+	INVOKEVIRTUAL input
+	ISTORE z
 
-    LDC_W OBJREF
-    ILOAD x
+	LDC_W OBJREF
     ILOAD y
-    IADD
-    ILOAD y
-    ILOAD z
     INVOKEVIRTUAL fun1
     ISTORE a
 
     LDC_W OBJREF
     ILOAD a
+    INVOKEVIRTUAL fun1
+
     LDC_W OBJREF
     ILOAD x
     ILOAD z
+    ILOAD y
     IADD
+    BIPUSH 2
+    ISUB
     INVOKEVIRTUAL fun2
     IADD
-    INVOKEVIRTUAL print
 
-    HALT
+	LDC_W OBJREF
+	SWAP
+	INVOKEVIRTUAL print
+
+	HALT
 .end-main
 
-.method fun1(a, b, c)
-    .var
-        i
-    .end-var
+.method fun2(y, z)
+	.var
+		i
+	.end-var
 
-    while:
-        ILOAD c
-        ILOAD b
-        ISUB
-        DUP
-        IFLT end-while
-        IFEQ end-while
+    ILOAD y
+    ILOAD z
+    BIPUSH 1
+    ISUB
+    ISUB
+    DUP
+    IFLT else
+    IFEQ else
 
-        ILOAD b
-        ILOAD a
-        ISUB
-        DUP
-        IFEQ else
-        IFLT else
+    IINC z 2
 
-        LDC_W OBJREF
-        ILOAD b
-        INVOKEVIRTUAL fun2
-        ISTORE c
-
-        GOTO end-if
-    else:
-        ILOAD c
-        ISTORE i
-
-    for:
-        ILOAD i
-        BIPUSH 2
-        ISUB
-        DUP
-        IFLT end-for
-        IFEQ end-for
-
-        ILOAD b
-        ILOAD c
-        ISUB
-        ISTORE c
-
-        IINC i -1
-
-        GOTO for
-    end-for:
-    end-if:
-        GOTO while
-    end-while:
-
-    ILOAD a
-    ILOAD c
+    LDC_W OBJREF
+    ILOAD y
+    INVOKEVIRTUAL fun1
+    BIPUSH 3
     IADD
     IRETURN
+
+    GOTO end-if
+    else:
+
+    BIPUSH 3
+    ISTORE i
+
+    for:
+    ILOAD y
+    ILOAD i
+    ISUB
+    DUP
+    IFEQ end-for
+    IFLT end-for
+
+    LDC_W OBJREF
+    ILOAD y
+    BIPUSH 2
+    INVOKEVIRTUAL div
+    BIPUSH 2
+    IADD
+    ISTORE z
+
+    ILOAD y
+    ILOAD z
+    IADD
+    LDC_W OBJREF
+    ILOAD z
+    BIPUSH 2
+    INVOKEVIRTUAL div
+    ISUB
+    IFLT end-if2
+
+    ILOAD y
+    BIPUSH 2
+    IADD
+    IRETURN
+
+    end-if2:
+
+    IINC i 1
+    GOTO for
+
+    end-for:
+
+    ILOAD z
+    IRETURN
+    end-if:
+
+
 .end-method
 
-.method fun2(b)
+.method fun1(a)
+    BIPUSH 2
+    LDC_W OBJREF
+    ILOAD a
+    BIPUSH 5
+    INVOKEVIRTUAL div
+    ISUB
+    IFLT end-if
+
+    LDC_W OBJREF
+    ILOAD a
+    BIPUSH 2
+    INVOKEVIRTUAL div
+    BIPUSH 8
+    ISUB
+    IFLT else
+
+    IINC a -1
+
+    GOTO end-if
+    else:
+
     while:
+        ILOAD a
+        BIPUSH 1
+        ISUB
         LDC_W OBJREF
-        ILOAD b
-        BIPUSH 10
-        INVOKEVIRTUAL mod
-        BIPUSH 5
+        ILOAD a
+        BIPUSH 2
+        INVOKEVIRTUAL div
         ISUB
         DUP
-        IFLT end-while
         IFEQ end-while
-        IINC b -1
-        GOTO while
+        IFLT end-while
+
+        IINC a -1
+
+    GOTO while
 
     end-while:
-        ILOAD b
-        BIPUSH 2
-        ISUB
-        DUP
-        IFEQ end-if
-        IFLT end-if
-
-        IINC b -1
-
-        LDC_W OBJREF
-        ILOAD b
-        BIPUSH 2
-        ISUB
-        INVOKEVIRTUAL fun2
-        IRETURN
-
     end-if:
-        ILOAD b
-        DUP
-        IADD
-        IRETURN
+    LDC_W OBJREF
+    ILOAD a
+    BIPUSH 3
+    INVOKEVIRTUAL fun2
+	IRETURN
 .end-method
 
 .method mul(i, j)
@@ -166,6 +197,7 @@ zero:
 fine:
 	IRETURN
 .end-method
+
 
 .method mod (a, b)
 	ILOAD a

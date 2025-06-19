@@ -217,18 +217,24 @@ public class IJVMScope
      * @param label The label to search for
      * @return The index of the label instruction
      */
-    public int getLabelInstructionIndex(String label) {
-        for (int i = 0; i < instructions.size(); i++) {
-            if ("label".equals(instructions.get(i).getOpCode()) && 
-                label.equals(instructions.get(i).getArgument())) {
+    public int getLabelInstructionIndex(String label)
+    {
+        for (int i = 0; i < instructions.size(); i++)
+        {
+            var instruction = instructions.get(i);
+
+            if ("label".equals(instruction.getOpCode()) &&
+                label.equals(instruction.getArgument())) {
                 return i;
             }
         }
+
         return -1;
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return "Scope{" +
                 "name='" + name + '\'' +
                 ", leftAtInstruction=" + leftAtInstruction +

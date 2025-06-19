@@ -301,7 +301,8 @@ public class ASM8088SemanticAnalyzerTest
         var list = dir.listFiles((dir1, name) -> name.contains("Tanenbaum"));
         assertNotNull(list);
 
-        for (File file : list) {
+        for (File file : list)
+        {
             List<SemanticError> errors = analyzeCodeFromPath(file.getAbsolutePath());
             assertTrue(errors.isEmpty(), "Valid program with comments should have no errors");
         }
