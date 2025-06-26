@@ -46,6 +46,10 @@ public class SemanticWarning
      */
     public String getFormattedMessage()
     {
+        if (line == -1 || column == -1) {
+            return String.format("Semantic warning - %s", message);
+        }
+
         return String.format("Semantic warning at line %d:%d - %s", line, column, message);
     }
     

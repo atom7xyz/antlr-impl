@@ -7,8 +7,6 @@ import xyz.atom7.api.interpreter.Instruction;
 @Getter
 public class IJVMInstruction extends Instruction
 {
-    private final String argument, secondArgument;
-
     /**
      * Constructor for IJVMInstruction with no arguments
      * 
@@ -16,9 +14,7 @@ public class IJVMInstruction extends Instruction
      */
     public IJVMInstruction(String opCode)
     {
-        super(opCode);
-        this.argument = null;
-        this.secondArgument = null;
+        super(opCode, null, null);
     }
 
     /**
@@ -29,9 +25,7 @@ public class IJVMInstruction extends Instruction
      */
     public IJVMInstruction(String opCode, String argument)
     {
-        super(opCode);
-        this.argument = argument;
-        this.secondArgument = null;
+        super(opCode, argument, null);
     }
 
     /**
@@ -42,9 +36,7 @@ public class IJVMInstruction extends Instruction
      */
     public IJVMInstruction(String opCode, TerminalNode argument)
     {
-        super(opCode);
-        this.argument = argument == null ? null : argument.getText();
-        this.secondArgument = null;
+        super(opCode, argument == null ? null : argument.getText(), null);
     }
 
     /**
@@ -56,23 +48,9 @@ public class IJVMInstruction extends Instruction
      */
     public IJVMInstruction(String opCode, TerminalNode argument, TerminalNode secondArgument)
     {
-        super(opCode);
-        this.argument = argument == null ? null : argument.getText();
-        this.secondArgument = secondArgument == null ? null : secondArgument.getText();
-    }
-
-    @Override
-    public String toString()
-    {
-        String arg = argument == null ? "" : ", argument='" + argument + "'";
-
-        if (secondArgument != null) {
-            arg += ", secondArgument=" + secondArgument + "'";
-        }
-
-        return "IJVMInstruction{" +
-                "opCode='" + getOpCode() + '\'' +
-                arg +
-                '}';
+        super(opCode,
+                argument == null ? null : argument.getText(),
+                secondArgument == null ? null : secondArgument.getText()
+        );
     }
 }

@@ -24,6 +24,8 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
 
     private Integer pendingReturnValue;
 
+    private IJVMScope scope;
+
     public IJVMProgram()
     {
         super();
@@ -33,12 +35,6 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         this.pendingReturnValue = null;
     }
 
-    public void init(String contents)
-    {
-        initInstructions();
-        initProgram(contents);
-    }
-
     @Override
     protected void initInstructions()
     {
@@ -46,45 +42,45 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             String value = instr.getArgument();
             int conv = Utils.parseInt(value);
 
-            getCurrentScope().pushStack(conv);
+            scope.pushStack(conv);
             debugln("BIPUSH " + conv);
         });
         
         addInstruction("ILOAD", (instr) -> {
             String varName = instr.getArgument();
-            int localValue = getCurrentScope().getLocals().get(varName);
+            int localValue = scope.getLocals().get(varName);
             
-            getCurrentScope().pushStack(localValue);
+            scope.pushStack(localValue);
             debugln("ILOAD " + varName + " = " + localValue);
         });
         
         addInstruction("ISTORE", (instr) -> {
             String varName = instr.getArgument();
-            int popValue = getCurrentScope().popStack();
+            int popValue = scope.popStack();
 
-            getCurrentScope().getLocals().replace(varName, popValue);
+            scope.getLocals().replace(varName, popValue);
             debugln("ISTORE " + varName + " = " + popValue);
         });
         
         addInstruction("IADD", (instr) -> {
-            int b = getCurrentScope().popStack();
-            int a = getCurrentScope().popStack();
+            int b = scope.popStack();
+            int a = scope.popStack();
 
-            getCurrentScope().pushStack(a + b);
+            scope.pushStack(a + b);
             debugln("IADD " + a + " + " + b + " = " + (a+b));
         });
         
         addInstruction("ISUB", (instr) -> {
-            int b = getCurrentScope().popStack();
-            int a = getCurrentScope().popStack();
+            int b = scope.popStack();
+            int a = scope.popStack();
 
-            getCurrentScope().pushStack(a - b);
+            scope.pushStack(a - b);
             debugln("ISUB " + a + " - " + b + " = " + (a-b));
         });
         
         addInstruction("GOTO", (instr) -> {
             String label = instr.getArgument();
-            int targetIndex = getCurrentScope().getLabelInstructionIndex(label);
+            int targetIndex = scope.getLabelInstructionIndex(label);
 
             debugln("GOTO " + label + " -> index: " + targetIndex);
 
@@ -92,11 +88,11 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
                 throw new IllegalStateException("Label not found: " + label);
             }
 
-            getCurrentScope().setPc(targetIndex - 1);
+            scope.setPc(targetIndex - 1);
         });
 
         addInstruction("POP", (instr) -> {
-            getCurrentScope().popStack();
+            scope.popStack();
             debugln("POP");
         });
         
@@ -107,17 +103,16 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Method blueprint not found: " + methodName));
 
-            IJVMScope currentScope = getCurrentScope();
-            currentScope.setReturnPc(currentScope.getPc());
+            scope.setReturnPc(scope.getPc());
             
             int argCount = targetScopeBlueprint.getArgumentCount();
             Integer[] args = new Integer[argCount];
             
             for (int i = argCount - 1; i >= 0; i--) {
-                args[i] = currentScope.popStack();
+                args[i] = scope.popStack();
             }
             
-            currentScope.popStack(); // just pop the objRef
+            scope.popStack(); // just pop the objRef
 
             IJVMScope newScopeInstance = new IJVMScope(targetScopeBlueprint);
             callStack.push(newScopeInstance);
@@ -131,27 +126,27 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         });
         
         addInstruction("IRETURN", (instr) -> {
-            pendingReturnValue = getCurrentScope().popStack();
+            pendingReturnValue = scope.popStack();
             debugln("IRETURN " + pendingReturnValue);
         });
 
         addInstruction("LABEL", (instr) -> debugln("LABEL " + instr.getArgument()));
 
         addInstruction("IFLT", (instr) -> {
-            int a = getCurrentScope().popStack();
+            int a = scope.popStack();
             debugln("IFLT " + a + " < 0");
 
             if (a < 0) {
-                getCurrentScope().setPc(getCurrentScope().getLabelInstructionIndex(instr.getArgument()));
+                scope.setPc(scope.getLabelInstructionIndex(instr.getArgument()));
             }
         });
         
         addInstruction("IFEQ", (instr) -> {
-            int a = getCurrentScope().popStack();
+            int a = scope.popStack();
             debugln("IFEQ " + a + " == 0");
 
             if (a == 0) {
-                getCurrentScope().setPc(getCurrentScope().getLabelInstructionIndex(instr.getArgument()));
+                scope.setPc(scope.getLabelInstructionIndex(instr.getArgument()));
             }
         });
 
@@ -159,11 +154,9 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             String constantName = instr.getArgument().toUpperCase();
             int constantValue = constantPool.get(constantName);
 
-            getCurrentScope().pushStack(constantValue);
+            scope.pushStack(constantValue);
             debugln("LDC_W " + constantName + " = " + constantValue);
         });
-
-        Scanner scanner = new Scanner(System.in);
 
         addInstruction("IN", (instr) -> {
             char value;
@@ -172,7 +165,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
                 String input = scanner.nextLine();
                 value = input.charAt(0);
 
-                getCurrentScope().pushStack((int) value);
+                scope.pushStack((int) value);
                 debugln("IN = " + input + " (input=" + input + ", value=" + value + ")");
             }
         });
@@ -180,7 +173,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         List<Integer> outVideo = new ArrayList<>();
 
         addInstruction("OUT", (instr) -> {
-            int value = getCurrentScope().popStack();
+            int value = scope.popStack();
 
             if (Utils.DEBUG) {
                 System.out.println("OUT CHAR: `" + ((char) value) + "`" + " (int equiv. is: " + value + ")");
@@ -198,19 +191,19 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         });
 
         addInstruction("DUP", (instr) -> {
-            int value = getCurrentScope().popStack();
+            int value = scope.popStack();
 
-            getCurrentScope().pushStack(value);
-            getCurrentScope().pushStack(value);
+            scope.pushStack(value);
+            scope.pushStack(value);
             debugln("DUP " + value);
         });
 
         addInstruction("SWAP", (instr) -> {
-            int value1 = getCurrentScope().popStack();
-            int value2 = getCurrentScope().popStack();
+            int value1 = scope.popStack();
+            int value2 = scope.popStack();
 
-            getCurrentScope().pushStack(value1);
-            getCurrentScope().pushStack(value2);
+            scope.pushStack(value1);
+            scope.pushStack(value2);
             debugln("SWAP " + value1 + " <-> " + value2);
         });
 
@@ -232,34 +225,34 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             int value = Utils.parseInt(instr.getArgument());
             String varName = instr.getSecondArgument();
 
-            Map<String, Integer> locals = getCurrentScope().getLocals();
+            Map<String, Integer> locals = scope.getLocals();
             locals.replace(varName, locals.get(varName) + value);
             
             debugln("IINC " + varName + " += " + value);
         });
         
         addInstruction("IAND", (instr) -> {
-            int b = getCurrentScope().popStack();
-            int a = getCurrentScope().popStack();
+            int b = scope.popStack();
+            int a = scope.popStack();
 
-            getCurrentScope().pushStack(a & b);
+            scope.pushStack(a & b);
             debugln("IAND " + a + " & " + b + " = " + (a&b));
         });
 
         addInstruction("IOR", (instr) -> {
-            int b = getCurrentScope().popStack();
-            int a = getCurrentScope().popStack();
+            int b = scope.popStack();
+            int a = scope.popStack();
 
-            getCurrentScope().pushStack(a | b);
+            scope.pushStack(a | b);
             debugln("IOR " + a + " | " + b + " = " + (a|b));
         });
         
         addInstruction("IF_ICMPEQ", (instr) -> {
-            int b = getCurrentScope().popStack();
-            int a = getCurrentScope().popStack();
+            int b = scope.popStack();
+            int a = scope.popStack();
 
             if (a == b) {
-                getCurrentScope().setPc(getCurrentScope().getLabelInstructionIndex(instr.getArgument()));
+                scope.setPc(scope.getLabelInstructionIndex(instr.getArgument()));
             }
         });
     }
@@ -271,10 +264,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         IJVMParserHelper helper = new IJVMParserHelper();
         var parseResult = helper.parseString(contents);
 
-        if (parseResult.hasSyntacticErrors() || parseResult.hasSemanticErrors()) {
-            System.err.println("Program has errors, cannot interpret!");
-            System.err.println(parseResult.getParserErrors());
-            System.err.println(parseResult.getSemanticErrors());
+        if (haltIfErrors(parseResult)) {
             return;
         }
 
@@ -355,11 +345,14 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         while (!callStack.isEmpty())
         {
             IJVMScope currentScope = getCurrentScope();
-            debugln("Executing in scope: " + currentScope.getName() + ", Stack: " + currentScope.getStack());
+            var instructions = currentScope.getInstructions();
+            String currentScopeName = currentScope.getName();
+
+            debugln("Executing in scope: " + currentScopeName + ", Stack: " + currentScope.getStack());
             int pc = currentScope.getPc() + 1;
             
-            if (pc >= currentScope.getInstructions().size()) {
-                debugln("No more instructions in scope " + currentScope.getName() + ", popping scope");
+            if (pc >= instructions.size()) {
+                debugln("No more instructions in scope " + currentScopeName + ", popping scope");
                 callStack.pop();
 
                 if (!callStack.isEmpty()) {
@@ -380,18 +373,30 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             }
             
             currentScope.setPc(pc);
-            debugln("PC=" + pc + ", Next instruction: " + currentScope.getInstructions().get(pc));
 
-            IJVMInstruction instruction = currentScope.getInstructions().get(pc);
+            IJVMInstruction instruction = instructions.get(pc);
+            scope = currentScope;
+
+            debugln("PC=" + pc + ", Next instruction: " + instruction);
             interpret((T) instruction);
         }
     }
 
+    /**
+     * Get the current scope of the program
+     *
+     * @return The current scope
+     */
     public IJVMScope getCurrentScope()
     {
         return callStack.peek();
     }
 
+    /**
+     * Get the current scope of the program, or null if no scope is available
+     *
+     * @return The current scope, or null if not available
+     */
     private IJVMInstruction getInstruction(int add)
     {
         var pc = getCurrentScope().getPc();
@@ -410,11 +415,22 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         return instructions.get(pc + add);
     }
 
+    /**
+     * Get the current instruction being executed
+     *
+     * @return The current instruction
+     */
     public IJVMInstruction getCurrentInstruction()
     {
         return getInstruction(0);
     }
 
+    /**
+     * Add a constant to the constant pool
+     *
+     * @param node1 The terminal node representing the constant name
+     * @param node2 The terminal node representing the constant value
+     */
     public void addConstant(@NotNull TerminalNode node1, @NotNull TerminalNode node2)
     {
         constantPool.put(node1.getText().toUpperCase(), Utils.parseInt(node2.getText()));

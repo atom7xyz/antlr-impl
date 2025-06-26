@@ -112,44 +112,4 @@ public class IJVMTracer extends Tracer<IJVMProgram<IJVMInstruction>, IJVMInstruc
         }
     }
 
-    @Getter
-    private enum ColorCode
-    {
-        RED("31"),
-        GREEN("32"),
-        YELLOW("33"),
-        BLUE("34"),
-        PURPLE("35"),
-        CYAN("36"),
-        BOLD_BLUE("1;34");
-
-        private final String code;
-
-        ColorCode(String code)
-        {
-            this.code = code;
-        }
-    }
-
-    private void printColoredNoValue(String label, ColorCode color)
-    {
-        System.out.println("\u001B[" + color.getCode() + "m" + label + " \u001B[0m");
-    }
-
-    private void printColored(String label, Object value, ColorCode color)
-    {
-        var valueDisplay = value == null ? "null" : value.toString();
-        System.out.println("\u001B[" + color.getCode() + "m" + label + ": \u001B[0m" + valueDisplay);
-    }
-
-    private String formatMap(Map<String, Integer> map)
-    {
-        if (map == null || map.isEmpty()) {
-            return "empty";
-        }
-
-        return map.toString()
-                .replace("{", "[")
-                .replace("}", "]");
-    }
 }

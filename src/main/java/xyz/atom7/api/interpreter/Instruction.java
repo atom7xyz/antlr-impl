@@ -13,5 +13,22 @@ public class Instruction
     /**
      * The operation code of the instruction.
      */
-    private final String opCode;
+    protected final String opCode, argument, secondArgument;
+
+    @Override
+    public String toString()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append(opCode);
+
+        if (argument != null) {
+            sb.append(" ").append(argument);
+        }
+
+        if (secondArgument != null) {
+            sb.append(", ").append(secondArgument);
+        }
+
+        return sb.toString();
+    }
 }

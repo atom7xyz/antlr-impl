@@ -263,6 +263,9 @@ public class IJVMParserErrorTest
         assertTrue(errors.size() >= 2, "Should detect multiple errors");
     }
 
+    /**
+     * Test all example files
+     */
     @Test
     @DisplayName("Valid programs should have no errors")
     public void testAllExampleFiles() throws IOException
@@ -284,12 +287,25 @@ public class IJVMParserErrorTest
         }
     }
 
+    /**
+     * Analyze the code and return the parser errors
+     * 
+     * @param code The code to analyze
+     * @return The parser errors
+     */
     private List<ParserError> analyzeCode(String code)
     {
         IJVMParseResult result = parserHelper.parseString(code);
         return result.getParserErrors();
     }
 
+    /**
+     * Analyze the code from a file and return the parser errors
+     * 
+     * @param filePath The path to the file to analyze
+     * @return The parser errors
+     * @throws IOException If the file is not found
+     */
     private List<ParserError> analyzeCodeFromPath(String filePath) throws IOException
     {
         IJVMParseResult result = parserHelper.parseFile(filePath);

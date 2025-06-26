@@ -6,6 +6,7 @@ import lombok.SneakyThrows;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 
@@ -19,13 +20,15 @@ public abstract class Interpreter<T extends Instruction> implements Program
 {
     protected final Map<String, Consumer<T>> instructionHandlers;
 
-    protected Semaphore running;
-
     @Setter
     protected int pc;
 
+    protected final Scanner scanner;
+    protected Semaphore running;
+
     public Interpreter()
     {
+        scanner = new Scanner(System.in);
         instructionHandlers = new HashMap<>();
         running = new Semaphore(0);
         pc = 0;
@@ -40,6 +43,17 @@ public abstract class Interpreter<T extends Instruction> implements Program
     public void addInstruction(String opCode, Consumer<T> handler)
     {
         instructionHandlers.put(opCode, handler);
+    }
+
+    /**
+     * Initializes the interpreter with the given contents.
+     * 
+     * @param contents The contents of the program
+     */
+    public void init(String contents)
+    {
+        initInstructions();
+        initProgram(contents);
     }
 
     /**

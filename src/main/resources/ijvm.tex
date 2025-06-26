@@ -24,7 +24,7 @@
 This paper provides a high-level overview of the design and implementation of the tool \texttt{antlr-impl}, an interpreter for a subset of the IJVM instruction set, which was created as an educational tool to show low-level execution flow and memory management. 
 The system, which was built with Java and ANTLR, consists of four main components: a Lexer, a Parser, a Semantic Analyzer, and an Interpreter. 
 
-While not intended for formal verification, this approach is an effective tool for learning and experimenting.
+While not intended for formal verification, this tool works well for educational discovery and hands-on experience.
 
 \vspace{2em}
 \noindent
@@ -38,7 +38,7 @@ The IJVM (Integer Java Virtual Machine) is a simple virtual machine model that i
 
 This tool was developed for the Architecture of Computer Systems course taught by Professor Diego Reforgiato Recupero at the University of Cagliari. 
 
-It makes use of Java 11 and the ANTLR 4 framework for robust grammar-based language recognition to implement an exhaustive processing pipeline, involving lexical analysis, parsing, semantic analysis, and execution.
+It makes use of Java 11 and the ANTLR 4 framework for robust grammar-based language recognition, it implements the processing pipeline involving: lexical analysis, parsing, semantic analysis, and execution.
 
 To maintain focus on core concepts and reduce complexity the tool does not implement the IJVM specification fully: some instructions such as the  \texttt{WIDE} instruction have been deliberately excluded. Table~\ref{tab:instructions} provides the list of supported instructions.
 

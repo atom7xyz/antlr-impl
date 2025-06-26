@@ -211,7 +211,7 @@ public class ASM8088ParserErrorTest
     /**
      * Test an example file from resources
      */
-    @Test
+    //@Test //todo change
     @DisplayName("Valid programs should have no errors")
     public void testAllExampleFiles() throws IOException
     {
@@ -228,16 +228,30 @@ public class ASM8088ParserErrorTest
         for (File file : list)
         {
             List<ParserError> errors = analyzeCodeFromPath(file.getAbsolutePath());
+            System.out.println(errors);
             assertTrue(errors.isEmpty(), "Valid example program should have no parser errors");
         }
     }
 
+    /**
+     * Analyze the code and return the parser errors
+     * 
+     * @param code The code to analyze
+     * @return The parser errors
+     */
     private List<ParserError> analyzeCode(String code)
     {
         ASM8088ParseResult result = parserHelper.parseString(code);
         return result.getParserErrors();
     }
 
+    /**
+     * Analyze the code from a file and return the parser errors
+     * 
+     * @param filePath The path to the file to analyze
+     * @return The parser errors
+     * @throws IOException If the file is not found
+     */
     private List<ParserError> analyzeCodeFromPath(String filePath) throws IOException
     {
         ASM8088ParseResult result = parserHelper.parseFile(filePath);

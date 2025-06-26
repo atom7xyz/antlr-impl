@@ -28,10 +28,8 @@ public class ParserErrorListener extends BaseErrorListener
             String msg,
             RecognitionException e)
     {
-        // Escape any special characters in the message
         String escapedMsg = escapeSpecialChars(msg);
         
-        // Create a ParserError object from the error info
         if (offendingSymbol instanceof Token) {
             Token token = (Token) offendingSymbol;
             errors.add(new ParserError(escapedMsg, token));

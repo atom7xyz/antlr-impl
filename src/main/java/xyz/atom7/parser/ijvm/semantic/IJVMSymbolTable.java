@@ -230,26 +230,4 @@ public class IJVMSymbolTable extends SymbolTable
         }
         return -1;
     }
-    
-    /**
-     * Get all labels in a specific scope
-     */
-    public Set<String> getLabelsInScope(String scope)
-    {
-        Set<String> labels = new HashSet<>();
-        Map<String, SymbolEntry> scopeSymbols = scopedSymbols.get(scope);
-
-        if (scopeSymbols != null) {
-            for (SymbolEntry entry : scopeSymbols.values())
-            {
-                if (entry.getType() != SymbolType.LABEL) {
-                    continue;
-                }
-
-                labels.add(entry.getName());
-            }
-        }
-        
-        return labels;
-    }
-} 
+}

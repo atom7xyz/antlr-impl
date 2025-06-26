@@ -10,7 +10,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import xyz.atom7.interpreter.ijvm.IJVMInstruction;
 import xyz.atom7.interpreter.ijvm.IJVMProgram;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,8 +42,7 @@ public class IJVMProgramTest
     static Stream<Arguments> ijvmTestCases()
     {
         return Stream.of(
-            // Test cases extracted from the example file comments
-            Arguments.of("ijvm_test_0_(13-06-2023) - x=1,y=2,z=3 -> 0", 
+            Arguments.of("ijvm_test_0_(13-06-2023) - x=1,y=2,z=3 -> 0",
                 "ijvm_test_0_(13-06-2023).jas", "1,2,3", "0"),
                 
             Arguments.of("ijvm_test_0_(13-06-2022) - x=0,y=3,z=2 -> 6",

@@ -23,7 +23,9 @@ public class IJVMSnapshot extends Snapshot<IJVMProgram<IJVMInstruction>, IJVMIns
     private Integer pendingReturnValue;
     private IJVMScope currentScope;
 
-    public IJVMSnapshot(IJVMProgram<IJVMInstruction> interpreter, List<IJVMInstruction> scopeInstructions, int pc)
+    public IJVMSnapshot(IJVMProgram<IJVMInstruction> interpreter,
+                        List<IJVMInstruction> scopeInstructions,
+                        int pc)
     {
         super(interpreter, scopeInstructions, pc);
         scopes = new Stack<>();

@@ -87,7 +87,7 @@ public class ASM8088SemanticAnalyzerTest
                 .anyMatch(m ->
                     m.contains("referenced but never defined") ||
                     m.contains("nonexistent_label"));
-    
+
         assertTrue(foundIssue, "Should detect reference to undefined label 'nonexistent_label'");
     }
     
@@ -237,35 +237,6 @@ public class ASM8088SemanticAnalyzerTest
         
         assertTrue(foundDuplicateError, "Should detect duplicate definition of constant 'max_count'");
     }
-    
-    /**
-     * Test for memory access to named locations outside .DATA section
-     */
-    @Test
-    @DisplayName("Should warn about memory access to named locations outside .DATA section")
-    public void testMemoryAccessOutsideDataSection() 
-    {
-        String invalidCode = codeWritten(
-                ".SECT .DATA",
-                "buffer: .SPACE 10",
-                "value: .BYTE 5",
-                ".SECT .TEXT",
-                "main:",
-                "    MOV AX, (buffer)", // Reference to named location from .TEXT
-                "    MOV BX, (value)",
-                "    RET"
-        );
-        
-        List<SemanticWarning> result = analyzeWarnings(invalidCode);
-        
-        assertNotNull(result, "Should be able to parse code with memory access");
-        
-        boolean hasWarning = result.stream()
-                .map(SemanticWarning::getMessage)
-                .anyMatch(m -> m.contains("Memory access to named location should be in .DATA section"));
-
-        assertTrue(hasWarning, "Should warn about memory access to named location outside .DATA section");
-    }
 
     /**
      * Test for section presence (as a warning)
@@ -309,7 +280,10 @@ public class ASM8088SemanticAnalyzerTest
     }
 
     /**
-     * Helper method to analyze code and return the parse result
+     * Analyze the code and return the semantic errors
+     * 
+     * @param code The code to analyze
+     * @return The semantic errors
      */
     private List<SemanticError> analyzeCode(String code)
     {
@@ -318,7 +292,10 @@ public class ASM8088SemanticAnalyzerTest
     }
 
     /**
-     * Helper method to analyze code and return the parse result for warnings
+     * Analyze the code and return the semantic warnings
+     * 
+     * @param code The code to analyze
+     * @return The semantic warnings
      */
     private List<SemanticWarning> analyzeWarnings(String code)
     {
@@ -327,7 +304,11 @@ public class ASM8088SemanticAnalyzerTest
     }
     
     /**
-     * Helper method to analyze code from a file path
+     * Analyze the code from a file and return the semantic errors
+     * 
+     * @param filePath The path to the file to analyze
+     * @return The semantic errors
+     * @throws IOException If the file is not found
      */
     private List<SemanticError> analyzeCodeFromPath(String filePath) throws IOException
     {

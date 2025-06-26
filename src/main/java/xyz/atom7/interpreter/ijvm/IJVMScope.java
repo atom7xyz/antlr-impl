@@ -5,28 +5,20 @@ import lombok.Setter;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.jetbrains.annotations.Nullable;
 import xyz.atom7.Utils;
+import xyz.atom7.api.interpreter.Scope;
 import xyz.atom7.parser.IJVMParser;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Stack;
 
 @Getter
-public class IJVMScope
+@Setter
+public class IJVMScope extends Scope<IJVMParser.StatementContext, IJVMInstruction>
 {
-    private final String name;
-    @Setter
-    private int leftAtInstruction = -1, pc = -1;
+    private int leftAtInstruction = -1, pc = -1; // inner program counter of the scope
+    private int returnPc = -1;
 
     private final LinkedHashMap<String, Integer> locals;
     private final LinkedHashMap<String, Integer> arguments;
-
-    private final Stack<Integer> stack;
-    private final List<IJVMInstruction> instructions;
-
-    @Setter
-    private int returnPc = -1;
 
     /**
      * Constructor for IJVMScope
@@ -35,11 +27,9 @@ public class IJVMScope
      */
     public IJVMScope(String name)
     {
-        this.name = name;
+        super(name);
         locals = new LinkedHashMap<>();
         arguments = new LinkedHashMap<>();
-        stack = new Stack<>();
-        instructions = new ArrayList<>();
     }
 
     /**
@@ -49,13 +39,11 @@ public class IJVMScope
      */
     public IJVMScope(IJVMScope toCopy)
     {
-        this.name = toCopy.name;
-
-        this.locals = new LinkedHashMap<>(toCopy.locals); // New map, copies entries (refs okay for String/Integer)
-        this.arguments = new LinkedHashMap<>(toCopy.arguments); // New map for arg definitions
-        this.stack = new Stack<>(); // New, empty stack is crucial
-
-        this.instructions = new ArrayList<>(toCopy.instructions); // New list shares instruction objects
+        super(toCopy.name);
+        this.locals = new LinkedHashMap<>(toCopy.locals);
+        this.arguments = new LinkedHashMap<>(toCopy.arguments);
+        this.stack.addAll(toCopy.stack);
+        this.instructions.addAll(toCopy.instructions);
     }
 
     /**
@@ -63,6 +51,7 @@ public class IJVMScope
      * 
      * @param statementCtx The statement context
      */
+    @Override
     public void addInstruction(IJVMParser.StatementContext statementCtx)
     {
         IJVMInstruction instruction = null;
@@ -153,52 +142,6 @@ public class IJVMScope
     private void addArgument(TerminalNode node)
     {
         arguments.put(node.getText(), null);
-    }
-
-    /**
-     * Push a value onto the stack
-     * 
-     * @param value The value to push onto the stack
-     */
-    public void pushStack(Integer value)
-    {
-        stack.push(value);
-    }
-
-    /**
-     * Pop a value from the stack
-     * 
-     * @return The value popped from the stack
-     */
-    public Integer popStack()
-    {
-        return stack.pop();
-    }
-
-    /**
-     * Save the leave instruction
-     * 
-     * @param pc The program counter
-     */
-    public void saveLeave(int pc)
-    {
-        leftAtInstruction = pc;
-    }
-
-    /**
-     * Clear the locals
-     */
-    public void clearLocals()
-    {
-        locals.clear();
-    }
-
-    /**
-     * Clear the stack
-     */
-    public void clearStack()
-    {
-        stack.clear();
     }
 
     /**

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import xyz.atom7.api.parser.semantic.SemanticError;
+import xyz.atom7.api.parser.semantic.SemanticWarning;
 import xyz.atom7.parser.ijvm.IJVMParseResult;
 import xyz.atom7.parser.ijvm.IJVMParserHelper;
 
@@ -275,6 +276,62 @@ public class IJVMSemanticAnalyzerTest
         assertTrue(errors.stream().anyMatch(e -> e.getMessage().contains("Method must end with IRETURN")),
                 "Error should mention method must end with IRETURN");
     }
+
+    /**
+     * Test stack underflow warnings
+     */
+    @Test
+    @DisplayName("Should warn about stack underflow")
+    public void testStackUnderflowWarning() {
+        String codeWithStackIssues = codeWritten(
+                ".main",
+                "IADD", // No values on stack for addition
+                "POP",  // No values on stack to pop
+                ".end-main"
+        );
+        
+        List<SemanticWarning> warnings = analyzeWarnings(codeWithStackIssues);
+        assertFalse(warnings.isEmpty(), "Should detect stack underflow warnings");
+        
+        boolean foundStackUnderflow = warnings.stream()
+                .anyMatch(w -> w.getMessage().contains("Stack underflow"));
+        
+        assertTrue(foundStackUnderflow, "Should warn about stack underflow");
+    }
+
+    /**
+     * Test insufficient stack values for method call
+     */
+    @Test
+    @DisplayName("Should warn about insufficient stack values for method call")
+    public void testInsufficientStackForMethodCall() {
+        String codeWithInsufficientStack = codeWritten(
+                ".constant",
+                "OBJREF 10",
+                ".end-constant",
+                "",
+                ".main",
+                "BIPUSH 5", // Only one parameter, but method needs two plus object reference
+                "LDC_W OBJREF",
+                "INVOKEVIRTUAL add", // Method needs 2 params + 1 objref = 3 stack values, but only has 2
+                ".end-main",
+                "",
+                ".method add(a, b)",
+                "ILOAD a",
+                "ILOAD b",
+                "IADD",
+                "IRETURN",
+                ".end-method"
+        );
+        
+        List<SemanticWarning> warnings = analyzeWarnings(codeWithInsufficientStack);
+        assertFalse(warnings.isEmpty(), "Should detect insufficient stack warning");
+        
+        boolean foundStackWarning = warnings.stream()
+                .anyMatch(w -> w.getMessage().contains("Not enough values on stack for method call"));
+        
+        assertTrue(foundStackWarning, "Should warn about insufficient stack values for method call");
+    }
     
     /**
      * Test comments are allowed
@@ -309,6 +366,9 @@ public class IJVMSemanticAnalyzerTest
         assertTrue(errors.isEmpty(), "Valid program with comments should have no errors");
     }
 
+    /**
+     * Test the Tanenbaum 1999 file
+     */
     @Test
     @DisplayName("Tests the Tanenbaum 1999 file")
     public void testTanenbaum1999() throws IOException
@@ -331,7 +391,10 @@ public class IJVMSemanticAnalyzerTest
     }
 
     /**
-     * Helper method to analyze code and return the parse result
+     * Analyze the code and return the semantic errors
+     * 
+     * @param code The code to analyze
+     * @return The semantic errors
      */
     private List<SemanticError> analyzeCode(String code)
     {
@@ -340,7 +403,23 @@ public class IJVMSemanticAnalyzerTest
     }
 
     /**
-     * Helper method to analyze code from a file path and return errors
+     * Analyze the code and return the semantic warnings
+     * 
+     * @param code The code to analyze
+     * @return The semantic warnings
+     */
+    private List<SemanticWarning> analyzeWarnings(String code)
+    {
+        IJVMParseResult result = parserHelper.parseString(code);
+        return result.getSemanticWarnings();
+    }
+
+    /**
+     * Analyze the code from a file and return the semantic errors
+     * 
+     * @param filePath The path to the file to analyze
+     * @return The semantic errors
+     * @throws IOException If the file is not found
      */
     private List<SemanticError> analyzeCodeFromPath(String filePath) throws IOException
     {

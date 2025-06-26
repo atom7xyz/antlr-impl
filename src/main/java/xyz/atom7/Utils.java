@@ -62,7 +62,7 @@ public class Utils
 
     /**
      * Parses an object to an integer
-     * 
+     *
      * @param input The object to parse
      * @return The parsed integer, or null if the input is null
      */
@@ -98,6 +98,23 @@ public class Utils
         }
 
         throw new IllegalArgumentException();
+    }
+
+    /**
+     * Parses an object to a byte
+     *
+     * @param input The object to parse
+     * @return The parsed byte, or 0 if the input is null or cannot be parsed
+     */
+    public static byte parseByte(@Nullable Object input)
+    {
+        Integer value = parseInt(input);
+
+        if (value == null) {
+            return 0;
+        }
+
+        return value.byteValue();
     }
 
     /**

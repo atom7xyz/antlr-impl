@@ -213,24 +213,7 @@ public class ASM8088SymbolTable extends SymbolTable
         SymbolEntry entry = lookupSymbol(name);
         return entry != null && entry.isDefined();
     }
-    
-    /**
-     * Check if a name is a register
-     */
-    public boolean isRegister(String name)
-    {
-        SymbolEntry entry = lookupSymbol(name);
-        return entry != null && entry.getType() == SymbolType.REGISTER;
-    }
-    
-    /**
-     * Get all symbols as a collection
-     */
-    public Collection<SymbolEntry> getAllSymbols()
-    {
-        return symbols.values();
-    }
-    
+
     /**
      * Get all unreferenced symbols
      */

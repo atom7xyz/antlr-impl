@@ -35,6 +35,10 @@ public class SemanticError
      */
     public String getFormattedMessage()
     {
+        if (line == -1 || column == -1) {
+            return String.format("Semantic error - %s", message);
+        }
+
         return String.format("Semantic error at line %d:%d - %s", line, column, message);
     }
     

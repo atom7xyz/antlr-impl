@@ -16,35 +16,66 @@ BSS: '.BSS' | '.bss';
 // Assignment
 EQUAL: '=';
 
-// Instructions
+// Data Transfer Instructions
+MOV: 'MOV' | 'mov';
+PUSH: 'PUSH' | 'push';
+POP: 'POP' | 'pop';
+
+// Arithmetic Instructions
+ADD: 'ADD' | 'add';
+ADC: 'ADC' | 'adc';
+SUB: 'SUB' | 'sub';
+SBB: 'SBB' | 'sbb';
+MUL: 'MUL' | 'mul';
+DIV: 'DIV' | 'div';
 INC: 'INC' | 'inc';
 DEC: 'DEC' | 'dec';
-JGE: 'JGE' | 'jge';
-JG: 'JG' | 'jg';
-JE: 'JE' | 'je';
+CMP: 'CMP' | 'cmp';
+
+// Logic Instructions
+AND: 'AND' | 'and';
+OR: 'OR' | 'or';
+XOR: 'XOR' | 'xor';
+NOT: 'NOT' | 'not';
+
+// Control Transfer Instructions
 JMP: 'JMP' | 'jmp';
+JE: 'JE' | 'je';
+JZ: 'JZ' | 'jz';
 JNE: 'JNE' | 'jne';
+JNZ: 'JNZ' | 'jnz';
+JL: 'JL' | 'jl';
+JNGE: 'JNGE' | 'jnge';
+JLE: 'JLE' | 'jle';
+JNG: 'JNG' | 'jng';
+JG: 'JG' | 'jg';
+JNLE: 'JNLE' | 'jnle';
+JGE: 'JGE' | 'jge';
+JNL: 'JNL' | 'jnl';
+JB: 'JB' | 'jb';
+JNAE: 'JNAE' | 'jnae';
+JBE: 'JBE' | 'jbe';
+JNA: 'JNA' | 'jna';
+JA: 'JA' | 'ja';
+JNBE: 'JNBE' | 'jnbe';
+JAE: 'JAE' | 'jae';
+JNB: 'JNB' | 'jnb';
+JS: 'JS' | 'js';
+JNS: 'JNS' | 'jns';
+JO: 'JO' | 'jo';
+JNO: 'JNO' | 'jno';
+JP: 'JP' | 'jp';
+JPE: 'JPE' | 'jpe';
+JNP: 'JNP' | 'jnp';
+JPO: 'JPO' | 'jpo';
+JC: 'JC' | 'jc';
+JNC: 'JNC' | 'jnc';
+JCXZ: 'JCXZ' | 'jcxz';
 LOOP: 'LOOP' | 'loop';
 CALL: 'CALL' | 'call';
 RET: 'RET' | 'ret';
-PUSH: 'PUSH' | 'push';
-POP: 'POP' | 'pop';
-SYS: 'SYS' | 'sys';
-XOR: 'XOR' | 'xor';
-MOV: 'MOV' | 'mov';
-DIV: 'DIV' | 'div';
-SUB: 'SUB' | 'sub';
-CMP: 'CMP' | 'cmp';
-ADD: 'ADD' | 'add';
-JLE: 'JLE' | 'jle';
-JNGE: 'JNGE' | 'jnge';
-JNG: 'JNG' | 'jng';
-JL: 'JL' | 'jl';
-JNZ: 'JNZ' | 'jnz';
-JZ: 'JZ' | 'jz';
-MUL: 'MUL' | 'mul';
 
-// Byte instructions
+// 8-bit instructions
 MOVB: 'MOVB' | 'movb';
 SUBB: 'SUBB' | 'subb';
 DIVB: 'DIVB' | 'divb';
@@ -53,7 +84,10 @@ ADDB: 'ADDB' | 'addb';
 XORB: 'XORB' | 'xorb';
 MULB: 'MULB' | 'mulb';
 
-// Registers
+// System call
+SYS: 'SYS' | 'sys';
+
+// 16-bit General Purpose Registers
 AX: 'AX' | 'ax';
 BX: 'BX' | 'bx';
 CX: 'CX' | 'cx';
@@ -62,6 +96,8 @@ SI: 'SI' | 'si';
 DI: 'DI' | 'di';
 BP: 'BP' | 'bp';
 SP: 'SP' | 'sp';
+
+// 8-bit General Purpose Registers
 AL: 'AL' | 'al';
 AH: 'AH' | 'ah';
 BL: 'BL' | 'bl';
@@ -77,15 +113,17 @@ DS: 'DS' | 'ds';
 ES: 'ES' | 'es';
 SS: 'SS' | 'ss';
 
-// Symbols
+// Symbols and operators
 COLON: ':';
 COMMA: ',';
 LPAREN: '(';
 RPAREN: ')';
+LBRACKET: '[';
+RBRACKET: ']';
 PLUS: '+';
 MINUS: '-';
 
-// Numbers
+// Numbers and literals
 HEX: '0' [xX] [0-9a-fA-F]+;
 NUM: '-'? [0-9]+;
 
