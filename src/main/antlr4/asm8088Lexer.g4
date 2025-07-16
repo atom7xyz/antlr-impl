@@ -84,8 +84,10 @@ ADDB: 'ADDB' | 'addb';
 XORB: 'XORB' | 'xorb';
 MULB: 'MULB' | 'mulb';
 
-// System call
+// System call and control instructions
 SYS: 'SYS' | 'sys';
+HLT: 'HLT' | 'hlt';
+NOP: 'NOP' | 'nop';
 
 // 16-bit General Purpose Registers
 AX: 'AX' | 'ax';

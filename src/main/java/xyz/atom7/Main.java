@@ -181,7 +181,7 @@ public class Main
         System.err.println("  -ijvm, -asm8088          Specify the language");
         System.err.println("  -file <path>             Path to the source file");
         System.err.println("  -d, -debug               Enable debug mode");
-        System.err.println("  -tracer                  Enable tracer for step-by-step execution view");
+        System.err.println("  -trace                   Enable tracer");
     }
 
     private static void parse(ParserHelper<?> helper, String filePath) throws Exception

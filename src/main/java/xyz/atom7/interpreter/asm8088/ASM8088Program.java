@@ -358,9 +358,6 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         addInstruction("RET", (instr) -> {
             int returnAddr = scope.popStack();
             scope.setPc(returnAddr - 1);
-            
-
-            
             debugln("RET (return to: " + returnAddr + ")");
         });
 
