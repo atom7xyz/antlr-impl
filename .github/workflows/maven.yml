@@ -83,6 +83,9 @@ jobs:
               break
             fi
           done
+          
+          # Remove all other JAR files (keep only the renamed dependencies JAR)
+          find . -name "*.jar" -not -name "antlr-impl-$MAVEN_VERSION.jar" -delete
         if: startsWith(github.ref, 'refs/tags/')
 
       - name: Upload JAR artifacts
