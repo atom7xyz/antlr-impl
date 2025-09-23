@@ -68,12 +68,19 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         if: startsWith(github.ref, 'refs/tags/')
 
-      - name: Rename JAR files
+      - name: Get Maven version and rename JAR
         run: |
           cd target/
-          for jar in *.jar; do
-            if [[ "$jar" != *"-sources.jar" && "$jar" != *"-javadoc.jar" ]]; then
-              mv "$jar" "${jar%.jar}-${GITHUB_REF#refs/tags/}.jar"
+          # Get Maven version from pom.xml
+          MAVEN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Maven version: $MAVEN_VERSION"
+          
+          # Find the jar-with-dependencies file and rename it
+          for jar in *-jar-with-dependencies.jar; do
+            if [[ -f "$jar" ]]; then
+              mv "$jar" "antlr-impl-$MAVEN_VERSION.jar"
+              echo "Renamed $jar to antlr-impl-$MAVEN_VERSION.jar"
+              break
             fi
           done
         if: startsWith(github.ref, 'refs/tags/')
@@ -82,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: maven-jars
-          path: target/*.jar
+          path: target/antlr-impl-*.jar
 
   create-release:
     name: Create Release
