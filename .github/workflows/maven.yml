@@ -70,10 +70,11 @@ jobs:
 
       - name: Get Maven version and rename JAR
         run: |
-          cd target/
-          # Get Maven version from pom.xml
+          # Get Maven version from pom.xml (run from root directory)
           MAVEN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "Maven version: $MAVEN_VERSION"
+          
+          cd target/
           
           # Find the jar-with-dependencies file and rename it
           for jar in *-jar-with-dependencies.jar; do
