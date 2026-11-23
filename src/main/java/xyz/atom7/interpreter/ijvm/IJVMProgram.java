@@ -17,6 +17,8 @@ import static xyz.atom7.Utils.debugln;
 @Getter
 public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
 {
+    private static final int MAX_OUTPUT_SUMMARY = 1_000_000;
+
     private final Map<String, Integer> constantPool;
     
     private final List<IJVMScope> scopes;
@@ -127,6 +129,7 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         
         addInstruction("IRETURN", (instr) -> {
             pendingReturnValue = scope.popStack();
+            scope.setPc(scope.getInstructions().size() - 1);
             debugln("IRETURN " + pendingReturnValue);
         });
 
@@ -160,9 +163,9 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
 
         addInstruction("IN", (instr) -> {
             char value;
+            String input = readInput();
 
-            if (scanner.hasNext()) {
-                String input = scanner.nextLine();
+            if (input != null) {
                 value = input.charAt(0);
 
                 scope.pushStack((int) value);
@@ -183,11 +186,13 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
                     System.out.println("OUTPUT: " + ((char) value) + " (int equiv. is: " + value + ")");
                 }
                 else {
-                    System.out.print((char) value);
+                    writeOutput(String.valueOf((char) value));
                 }
             }
 
-            outVideo.add(value);
+            if (outVideo.size() < MAX_OUTPUT_SUMMARY) {
+                outVideo.add(value);
+            }
         });
 
         addInstruction("DUP", (instr) -> {
@@ -210,13 +215,13 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
         addInstruction("HALT", (instr) -> {
             debugln("HALT");
 
-            System.out.println("\nPROGRAM OUTPUT IS:");
+            StringBuilder summary = new StringBuilder("\nPROGRAM OUTPUT IS:\n");
             for (int i : outVideo)
-                System.out.print((char) i);
-            System.out.println(" ");
+                summary.append((char) i);
+            summary.append(" \n");
 
-            System.exit(0);
-            halt();
+            writeOutput(summary.toString());
+            exitProgram(0);
         });
 
         addInstruction("NOP", (instr) -> debugln("NOP"));

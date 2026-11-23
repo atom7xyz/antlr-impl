@@ -76,6 +76,45 @@ public abstract class Interpreter<T extends Instruction> implements Program
     public abstract void interpret(T instruction);
 
     /**
+     * Reads the next non-empty line of input.
+     *
+     * @return The line read, or null if no input is available
+     */
+    protected String readInput()
+    {
+        while (scanner.hasNextLine())
+        {
+            String line = scanner.nextLine();
+
+            if (!line.isEmpty()) {
+                return line;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Writes program output.
+     *
+     * @param text The text to write
+     */
+    protected void writeOutput(String text)
+    {
+        System.out.print(text);
+    }
+
+    /**
+     * Ends the program.
+     *
+     * @param exitCode The exit code of the program
+     */
+    protected void exitProgram(int exitCode)
+    {
+        System.exit(exitCode);
+    }
+
+    /**
      * Halts the program.
      */
     @SneakyThrows

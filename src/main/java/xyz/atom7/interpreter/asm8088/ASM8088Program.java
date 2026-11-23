@@ -369,10 +369,8 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
                     int exitCode = scope.popStack();
 
                     debugln("SYS EXIT (code: " + exitCode + ")");
-                    System.out.println("\nProgram exited with code: " + exitCode);
-
-                    System.exit(exitCode);
-                    halt();
+                    writeOutput("\nProgram exited with code: " + exitCode + "\n");
+                    exitProgram(exitCode);
 
                     break;
                     
@@ -380,8 +378,9 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
                     debugln("SYS GETCHAR");
 
                     char read;
-                    if (scanner.hasNext()) {
-                        String input = scanner.nextLine();
+                    String input = readInput();
+
+                    if (input != null) {
                         read = input.charAt(0);
 
                         scope.setRegister8("AL", read);
@@ -392,7 +391,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
                     String format = getStringFromStack();
                     int value = scope.popStack();
                     debugln("SYS PRINTF (format: \"" + format + "\", value: " + value + ")");
-                    System.out.printf(format, value);
+                    writeOutput(String.format(format, value));
                     break;
 
                 default:
@@ -403,8 +402,8 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
 
         addInstruction("HLT", (instr) -> {
             debugln("HLT");
-            System.out.println("\nProgram halted.");
-            halt();
+            writeOutput("\nProgram halted.\n");
+            exitProgram(0);
         });
 
         addInstruction("NOP", (instr) -> {
