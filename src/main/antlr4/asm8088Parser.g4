@@ -38,7 +38,7 @@ instruction: mnemonic operandList?;
 // Group instructions by their operand requirements and types
 mnemonic:
       // No operand instructions
-      RET
+      RET | HLT
 
       // Single operand instructions
     | INC | DEC | PUSH | POP | CALL | JMP | NOT | MUL | DIV
