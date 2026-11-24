@@ -302,6 +302,24 @@ public class DebugSessionTest
     }
 
     @Test
+    @DisplayName("IJVM ERR prints an error and ends with code 1")
+    void testIjvmErr() throws InterruptedException
+    {
+        String code = codeWritten(".main", "BIPUSH 65", "OUT", "ERR", "BIPUSH 66", "OUT", ".end-main");
+
+        DebugSession session = DebugSession.create("ijvm", code);
+        StringBuilder output = new StringBuilder();
+
+        session.start(false);
+        StateUpdate update = awaitState(session, "FINISHED", output);
+
+        assertEquals(1, update.getExitCode());
+        assertTrue(output.toString().startsWith("A"));
+        assertTrue(output.toString().contains("ERR"));
+        assertFalse(output.toString().contains("B"));
+    }
+
+    @Test
     @DisplayName("Stop ends an infinite loop")
     void testStop() throws InterruptedException
     {

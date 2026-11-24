@@ -5,10 +5,14 @@ import lombok.SneakyThrows;
 import xyz.atom7.Utils;
 import xyz.atom7.api.interpreter.Interpreter;
 import xyz.atom7.parser.asm8088.ASM8088ParserHelper;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.TerminalNode;
 import xyz.atom7.parser.asm8088Parser;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static xyz.atom7.Utils.debugln;
 
@@ -51,6 +55,12 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      * Size of the text segment in bytes
      */
     private int textSize;
+
+    private static final Set<String> BYTE_OPCODES = Set.of("MOVB", "ADDB", "SUBB", "CMPB", "DIVB", "XORB", "MULB");
+    private static final Pattern TERM = Pattern.compile("([+-]?)\\s*([^+\\-\\s]+)");
+
+    /** True while an instruction accesses memory one byte at a time. */
+    private boolean byteAccess;
 
     /**
      * A subroutine entered with CALL: its label and the stack offset of its return address.
@@ -189,9 +199,12 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             String operand = instr.getArgument();
             int value = getValue(operand);
             int result = value + 1;
+            boolean carry = scope.isCarryFlag();
             
             setValue(operand, result);
-            scope.updateFlags(result, is16BitOperand(operand));
+            // INC does not change CF.
+            scope.updateArithmeticFlags(value, 1, result, is16BitOperand(operand), false);
+            scope.setCarryFlag(carry);
             
             debugln(formatDebug("INC", operand, value, result, null));
         });
@@ -200,9 +213,12 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             String operand = instr.getArgument();
             int value = getValue(operand);
             int result = value - 1;
+            boolean carry = scope.isCarryFlag();
             
             setValue(operand, result);
-            scope.updateFlags(result, is16BitOperand(operand));
+            // DEC does not change CF.
+            scope.updateArithmeticFlags(value, 1, result, is16BitOperand(operand), true);
+            scope.setCarryFlag(carry);
             
             debugln(formatDebug("DEC", operand, value, result, null));
         });
@@ -323,7 +339,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
 
         addInstruction("JG", (instr) -> {
             String label = instr.getArgument();
-            if (!scope.isZeroFlag() && !scope.isSignFlag()) {
+            if (!scope.isZeroFlag() && scope.isSignFlag() == scope.isOverflowFlag()) {
                 Integer targetIndex = labels.get(label);
                 if (targetIndex != null) {
                     scope.setPc(targetIndex - 1);
@@ -338,7 +354,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
 
         addInstruction("JL", (instr) -> {
             String label = instr.getArgument();
-            if (scope.isSignFlag()) {
+            if (scope.isSignFlag() != scope.isOverflowFlag()) {
                 Integer targetIndex = labels.get(label);
                 if (targetIndex != null) {
                     scope.setPc(targetIndex - 1);
@@ -353,7 +369,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
 
         addInstruction("JLE", (instr) -> {
             String label = instr.getArgument();
-            if (scope.isZeroFlag() || scope.isSignFlag()) {
+            if (scope.isZeroFlag() || scope.isSignFlag() != scope.isOverflowFlag()) {
                 Integer targetIndex = labels.get(label);
                 if (targetIndex != null) {
                     scope.setPc(targetIndex - 1);
@@ -474,7 +490,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             int result = destVal + srcVal;
               
             setValue(dest, result);
-            scope.updateFlags(result, false);
+            scope.updateArithmeticFlags(destVal, srcVal, result, false, false);
             
             debugln(formatDebugTwoOp("ADDB", dest, src, destVal, result, srcVal, "+") + " (8-bit)");
         });
@@ -488,7 +504,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             int result = destVal - srcVal;
             
             setValue(dest, result);
-            scope.updateFlags(result, false);
+            scope.updateArithmeticFlags(destVal, srcVal, result, false, true);
             
             debugln(formatDebugTwoOp("SUBB", dest, src, destVal, result, srcVal, "-") + " (8-bit)");
         });
@@ -501,7 +517,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             int val2 = getValue(op2) & 0xFF;
             int result = val1 - val2;
             
-            scope.updateFlags(result, false);
+            scope.updateArithmeticFlags(val1, val2, result, false, true);
             
             String flagInfo = "(Z:" + (scope.isZeroFlag() ? "1" : "0") + 
                              " S:" + (scope.isSignFlag() ? "1" : "0") + 
@@ -1163,8 +1179,8 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             String hexStr = assignment.HEX().getText();
             value = Integer.parseInt(hexStr.substring(2), 16); // Remove 0x prefix
         }
-        else if (assignment.NUM() != null) {
-            value = Integer.parseInt(assignment.NUM().getText());
+        else if (assignment.NUM() != null || assignment.OCT() != null) {
+            value = parseNumber(assignment.getChild(2).getText());
         }
         else {
             return;
@@ -1292,7 +1308,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         sb.append(instruction.mnemonic().getText());
         
         if (instruction.operandList() != null) {
-            sb.append(" ").append(instruction.operandList().getText());
+            sb.append(" ").append(normalizedText(instruction.operandList()));
         }
         
         return sb.toString();
@@ -1307,13 +1323,139 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
     private String getDirectiveText(asm8088Parser.DirectiveContext directive)
     {
         if (directive.BYTE() != null) {
-            return ".BYTE " + directive.valueList().getText();
+            return ".BYTE " + normalizedText(directive.valueList());
         } else if (directive.ASCII() != null) {
             return ".ASCII " + directive.STRING().getText();
         } else if (directive.SPACE() != null) {
             return ".SPACE " + directive.NUM().getText();
         }
         return "";
+    }
+
+    /**
+     * Returns the source text of an operand list or a value list in the form that the interpreter evaluates.
+     * Register names become upper case, octal numbers become decimal and (expression) becomes [expression].
+     *
+     * @param node The parse tree node
+     * @return The normalized text
+     */
+    private static String normalizedText(ParseTree node)
+    {
+        if (node instanceof TerminalNode) {
+            TerminalNode terminal = (TerminalNode) node;
+            String text = terminal.getText();
+            int type = terminal.getSymbol().getType();
+
+            if (node.getParent() instanceof asm8088Parser.RegisterContext) {
+                return text.toUpperCase();
+            }
+
+            if (type == asm8088Parser.OCT) {
+                return Integer.toString(parseNumber(text));
+            }
+
+            if (node.getParent() instanceof asm8088Parser.MemoryContext) {
+                if (type == asm8088Parser.LPAREN) {
+                    return "[";
+                }
+                if (type == asm8088Parser.RPAREN) {
+                    return "]";
+                }
+            }
+
+            return text;
+        }
+
+        StringBuilder builder = new StringBuilder();
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            builder.append(normalizedText(node.getChild(i)));
+        }
+
+        return builder.toString();
+    }
+
+    /**
+     * Parses a decimal, hexadecimal (0x1B) or octal (033) number, with an optional minus sign.
+     *
+     * @param text The number
+     * @return The value
+     */
+    static int parseNumber(String text)
+    {
+        String digits = text.trim();
+        boolean negative = digits.startsWith("-");
+
+        if (negative) {
+            digits = digits.substring(1);
+        }
+
+        int value;
+
+        if (digits.startsWith("0x") || digits.startsWith("0X")) {
+            value = Integer.parseInt(digits.substring(2), 16);
+        }
+        else if (digits.matches("0[0-7]+")) {
+            // Same rule as the lexer: 017 is octal, 09 is decimal.
+            value = Integer.parseInt(digits.substring(1), 8);
+        }
+        else {
+            value = Integer.parseInt(digits);
+        }
+
+        return negative ? -value : value;
+    }
+
+    /**
+     * Evaluates a sum of terms such as "BX+SI-2", "msg+4" or "v2-v1".
+     * A term is a register, a number, a constant or a data label.
+     *
+     * @param expression The expression, without brackets
+     * @param memory True if the expression is a memory address
+     * @return The value, or the physical address of a memory expression
+     */
+    private int evaluate(String expression, boolean memory)
+    {
+        Matcher matcher = TERM.matcher(expression.trim());
+        int total = 0;
+        boolean stackSegment = false;
+
+        while (matcher.find())
+        {
+            int sign = "-".equals(matcher.group(1)) ? -1 : 1;
+            String term = matcher.group(2);
+            int value;
+
+            if (isRegister16(term)) {
+                value = scope.getRegister16(term);
+                // An address that uses BP is in the stack segment.
+                stackSegment |= term.equals("BP");
+            }
+            else if (isRegister8(term)) {
+                value = scope.getRegister8(term);
+            }
+            else if (isSegmentRegister(term)) {
+                value = scope.getSegmentRegister(term);
+            }
+            else if (Character.isDigit(term.charAt(0))) {
+                value = parseNumber(term);
+            }
+            else {
+                value = scope.getLabelAddress(term);
+
+                if (value == -1) {
+                    throw new IllegalStateException("Symbol '" + term + "' is not defined");
+                }
+            }
+
+            total += sign * value;
+        }
+
+        if (!memory) {
+            return total;
+        }
+
+        return stackSegment ? scope.getStackAddress(total & 0xFFFF) : total & 0xFFFFF;
     }
 
     /**
@@ -1328,84 +1470,24 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         
         operand = operand.trim();
         
-        // Handle memory references [operand]
         if (operand.startsWith("[") && operand.endsWith("]")) {
-            String memRef = operand.substring(1, operand.length() - 1).trim();
-            int address = getMemoryAddress(memRef);
-            
-            if (is16BitMemoryAccess(memRef)) {
-                return scope.readWord(address);
-            } else {
-                return scope.readByte(address) & 0xFF;
-            }
+            int address = getMemoryAddress(operand.substring(1, operand.length() - 1));
+            return byteAccess ? scope.readByte(address) & 0xFF : scope.readWord(address);
         }
         
-        // Handle 16-bit registers
         if (isRegister16(operand)) {
             return scope.getRegister16(operand);
         }
         
-        // Handle 8-bit registers
         if (isRegister8(operand)) {
             return scope.getRegister8(operand);
         }
         
-        // Handle segment registers
         if (isSegmentRegister(operand)) {
             return scope.getSegmentRegister(operand);
         }
         
-        // Handle immediate values (hex or decimal)
-        if (operand.startsWith("0x") || operand.startsWith("0X")) {
-            return Integer.parseInt(operand.substring(2), 16);
-        }
-        
-        // Handle arithmetic expressions like v2-v1
-        if (operand.contains("-")) {
-            String[] parts = operand.split("-");
-            if (parts.length == 2) {
-                String left = parts[0].trim();
-                String right = parts[1].trim();
-                
-                // Try to resolve both parts as labels
-                int leftAddr = scope.getLabelAddress(left);
-                int rightAddr = scope.getLabelAddress(right);
-                
-                if (leftAddr != -1 && rightAddr != -1) {
-                    return leftAddr - rightAddr;
-                }
-            }
-        }
-        
-        if (operand.contains("+")) {
-            String[] parts = operand.split("\\+");
-            if (parts.length == 2) {
-                String left = parts[0].trim();
-                String right = parts[1].trim();
-                
-                // Try to resolve both parts as labels
-                int leftAddr = scope.getLabelAddress(left);
-                int rightAddr = scope.getLabelAddress(right);
-                
-                if (leftAddr != -1 && rightAddr != -1) {
-                    return leftAddr + rightAddr;
-                }
-            }
-        }
-        
-        // Handle decimal immediate
-        try {
-            return Integer.parseInt(operand);
-        } catch (NumberFormatException e) {
-            // Handle labels and constants
-            Integer labelAddr = scope.getLabelAddress(operand);
-            if (labelAddr != -1) {
-                return labelAddr;
-            }
-            
-            // Default to 0 for unknown operands
-            return 0;
-        }
+        return evaluate(operand, false);
     }
 
     /**
@@ -1420,35 +1502,29 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         
         operand = operand.trim();
         
-        // Handle memory references [operand]
         if (operand.startsWith("[") && operand.endsWith("]")) {
-            String memRef = operand.substring(1, operand.length() - 1).trim();
-            int address = getMemoryAddress(memRef);
+            int address = getMemoryAddress(operand.substring(1, operand.length() - 1));
             
-            if (is16BitMemoryAccess(memRef)) {
-                scope.writeWord(address, value & 0xFFFF);
-            } else {
+            if (byteAccess) {
                 scope.writeByte(address, (byte) (value & 0xFF));
+            } else {
+                scope.writeWord(address, value & 0xFFFF);
             }
             return;
         }
         
-        // Handle 16-bit registers
         if (isRegister16(operand)) {
             scope.setRegister16(operand, value & 0xFFFF);
             return;
         }
         
-        // Handle 8-bit registers
         if (isRegister8(operand)) {
             scope.setRegister8(operand, value & 0xFF);
             return;
         }
         
-        // Handle segment registers
         if (isSegmentRegister(operand)) {
             scope.setSegmentRegister(operand, value & 0xFFFF);
-            return;
         }
     }
 
@@ -1460,93 +1536,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      */
     private int getMemoryAddress(String memRef)
     {
-        memRef = memRef.trim();
-        
-        // Handle simple label reference
-        if (memRef.matches("[a-zA-Z_][a-zA-Z0-9_]*")) {
-            Integer labelAddr = scope.getLabelAddress(memRef);
-            return labelAddr != -1 ? labelAddr : 0;
-        }
-        
-        // Handle register + offset patterns like "BX+SI", "BP+8", etc.
-        if (memRef.contains("+")) {
-            String[] parts = memRef.split("\\+");
-            int offset = 0;
-            boolean usesStackSegment = false;
-            
-
-            
-            for (String part : parts) {
-                part = part.trim();
-                if (isRegister16(part)) {
-                    if (part.equals("BP")) {
-                        // BP-relative addressing uses stack segment
-                        usesStackSegment = true;
-                        offset += scope.getRegister16(part);
-                    } else {
-                        offset += scope.getRegister16(part);
-                    }
-                } else if (part.matches("\\d+")) {
-                    offset += Integer.parseInt(part);
-                } else if (part.startsWith("0x")) {
-                    offset += Integer.parseInt(part.substring(2), 16);
-                } else {
-                    // Handle label
-                    int labelAddr = scope.getLabelAddress(part);
-                    if (labelAddr != -1) {
-                        offset += labelAddr;
-                    }
-                }
-            }
-            
-            // For BP-relative addressing, use stack addressing
-            if (usesStackSegment) {
-                return scope.getStackAddress(offset);
-            }
-            
-            return offset & 0xFFFFF; // 20-bit address space
-        }
-        
-        // Handle register - offset patterns
-        if (memRef.contains("-")) {
-            String[] parts = memRef.split("-");
-            int address = 0;
-            
-            // First part is added
-            String part = parts[0].trim();
-            if (isRegister16(part)) {
-                address += scope.getRegister16(part);
-            } else if (part.matches("\\d+")) {
-                address += Integer.parseInt(part);
-            }
-            
-            // Remaining parts are subtracted
-            for (int i = 1; i < parts.length; i++) {
-                part = parts[i].trim();
-                if (isRegister16(part)) {
-                    address -= scope.getRegister16(part);
-                } else if (part.matches("\\d+")) {
-                    address -= Integer.parseInt(part);
-                }
-            }
-            return address & 0xFFFFF;
-        }
-        
-        // Handle simple register
-        if (isRegister16(memRef)) {
-            return scope.getRegister16(memRef);
-        }
-        
-        // Handle immediate address
-        try {
-            if (memRef.startsWith("0x")) {
-                return Integer.parseInt(memRef.substring(2), 16);
-            } else {
-                return Integer.parseInt(memRef);
-            }
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+        return evaluate(memRef, true);
     }
 
     /**
@@ -1561,36 +1551,11 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         
         operand = operand.trim();
         
-        // Memory references default to 16-bit unless explicitly 8-bit
         if (operand.startsWith("[") && operand.endsWith("]")) {
-            return is16BitMemoryAccess(operand.substring(1, operand.length() - 1));
+            return !byteAccess;
         }
         
         return isRegister16(operand) || isSegmentRegister(operand);
-    }
-
-    /**
-     * Determines if a memory access is 16-bit based on context
-     * 
-     * @param memRef The memory reference string
-     * @return true if 16-bit access, false if 8-bit
-     */
-    private boolean is16BitMemoryAccess(String memRef)
-    {
-        memRef = memRef.trim().toUpperCase();
-
-        // If the memory reference uses 8-bit registers, treat as 8-bit
-        if (memRef.matches(".*\\b(AL|AH|BL|BH|CL|CH|DL|DH)\\b.*")) {
-            return false;
-        }
-
-        // If the memory reference uses 16-bit registers, treat as 16-bit
-        if (memRef.matches(".*\\b(AX|BX|CX|DX|SI|DI|BP|SP)\\b.*")) {
-            return true;
-        }
-
-        // Default: treat as 16-bit
-        return true;
     }
 
     /**
@@ -1601,7 +1566,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      */
     private boolean isRegister16(String operand)
     {
-        return operand.matches("(AX|BX|CX|DX|SI|DI|BP|SP)");
+        return operand != null && operand.matches("(AX|BX|CX|DX|SI|DI|BP|SP)");
     }
 
     /**
@@ -1612,7 +1577,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      */
     private boolean isRegister8(String operand)
     {
-        return operand.matches("(AL|AH|BL|BH|CL|CH|DL|DH)");
+        return operand != null && operand.matches("(AL|AH|BL|BH|CL|CH|DL|DH)");
     }
 
     /**
@@ -1623,7 +1588,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      */
     private boolean isSegmentRegister(String operand)
     {
-        return operand.matches("(DS|ES|SS)");
+        return operand != null && operand.matches("(CS|DS|ES|SS)");
     }
 
     /**
@@ -1778,6 +1743,10 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         Consumer<T> handler = instructionHandlers.get(opCode);
         
         if (handler != null) {
+            // A byte instruction or an 8-bit register operand makes the memory access one byte wide.
+            byteAccess = BYTE_OPCODES.contains(opCode)
+                    || isRegister8(instruction.getArgument())
+                    || isRegister8(instruction.getSecondArgument());
             handler.accept(instruction);
 
             if (Utils.TRACER != null) {

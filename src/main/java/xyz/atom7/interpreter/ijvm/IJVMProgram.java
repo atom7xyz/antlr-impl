@@ -250,6 +250,13 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
 
         addInstruction("NOP", (instr) -> debugln("NOP"));
 
+        // ERR prints an error message and halts, as in the Mic-1 simulator.
+        addInstruction("ERR", (instr) -> {
+            debugln("ERR");
+            writeOutput("\nERROR: the program executed ERR.\n");
+            exitProgram(1);
+        });
+
         addInstruction("IINC", (instr) -> {
             int value = Utils.parseInt(instr.getArgument());
             String varName = instr.getSecondArgument();

@@ -21,7 +21,7 @@ line
     ;
 
 // Assignment of constants/variables
-assignment: ID EQUAL (HEX | NUM);
+assignment: ID EQUAL (HEX | NUM | OCT);
 
 // Section directives
 section: SECT (DATA | TEXT | BSS);
@@ -38,7 +38,7 @@ instruction: mnemonic operandList?;
 // Group instructions by their operand requirements and types
 mnemonic:
       // No operand instructions
-      RET | HLT
+      RET | HLT | NOP
 
       // Single operand instructions
     | INC | DEC | PUSH | POP | CALL | JMP | NOT | MUL | DIV
@@ -81,13 +81,12 @@ register:
     | CS | DS | ES | SS;
 
 // Immediate value (number or hex)
-immediate: HEX | NUM;
+immediate: HEX | NUM | OCT;
 
 // Arithmetic expressions (e.g., s-v, 5+BP, etc.)
+// A negative number right after a term, as in v-2, is a single NUM or OCT token.
 expr
-    : ID ((PLUS | MINUS) (ID | NUM | HEX))*  // Label arithmetic like v2-v1
-    | NUM ((PLUS | MINUS) (ID | NUM | HEX))*
-    | HEX ((PLUS | MINUS) (ID | NUM | HEX))*
+    : (ID | NUM | HEX | OCT) ((PLUS | MINUS) (ID | NUM | HEX | OCT) | signedNumber)*
     ;
 
 // Memory addressing modes for 8088
@@ -101,15 +100,20 @@ memoryExpression
     : immediate                                          // Direct addressing [1234h]
     | register                                           // Register indirect [BX]
     | register PLUS immediate                            // Based with displacement [BX+8]
-    | register MINUS immediate                           // Based with negative displacement [BX-8]
+    | register MINUS immediate                           // Based with negative displacement [BX - 8]
+    | register signedNumber                              // Based with negative displacement [BX-8]
     | immediate PLUS register                            // Displacement + base [8+BX]
     | register PLUS register                             // Based indexed [BX+SI]
     | register PLUS register PLUS immediate              // Based indexed with displacement [BX+SI+8]
-    | register PLUS register MINUS immediate             // Based indexed with negative displacement [BX+SI-8]
+    | register PLUS register MINUS immediate             // Based indexed with negative displacement [BX+SI - 8]
+    | register PLUS register signedNumber                // Based indexed with negative displacement [BX+SI-8]
     | immediate PLUS register PLUS register              // Displacement + based indexed [8+BX+SI]
     | ID                                                 // Label reference [label]
     | ID PLUS immediate                                  // Label + offset [label+4]
-    | ID MINUS immediate                                 // Label - offset [label-4]
+    | ID MINUS immediate                                 // Label - offset [label - 4]
+    | ID signedNumber                                    // Label - offset [label-4]
+    | ID PLUS register signedNumber                      // Label + register - offset [label+BX-4]
+    | register PLUS ID signedNumber                      // Register + label - offset [BX+label-4]
     | ID PLUS register                                   // Label + register [label+BX]
     | ID PLUS register PLUS immediate                    // Label + register + offset [label+BX+4]
     | register PLUS ID                                   // Register + label [BX+label]
@@ -125,4 +129,7 @@ directive
     ;
 
 // List of values for .BYTE directive
-valueList: (HEX | NUM) (COMMA (HEX | NUM))*;
+valueList: (HEX | NUM | OCT) (COMMA (HEX | NUM | OCT))*;
+
+// A negative number, lexed as one token. A positive number here would join two terms without an operator.
+signedNumber: {_input.LT(1).getText().startsWith("-")}? (NUM | OCT);

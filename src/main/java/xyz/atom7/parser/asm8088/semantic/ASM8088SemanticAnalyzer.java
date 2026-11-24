@@ -344,7 +344,7 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
             symbolTable.addConstant(id, value);
         } catch (NumberFormatException e) {
             addError("Invalid number format for constant '" + id + "'", 
-                      ctx.HEX() != null ? ctx.HEX().getSymbol() : ctx.NUM().getSymbol());
+                      ((org.antlr.v4.runtime.tree.TerminalNode) ctx.getChild(2)).getSymbol());
         }
         
         return null;
@@ -368,6 +368,13 @@ public class ASM8088SemanticAnalyzer extends asm8088ParserBaseVisitor<Void>
             return Integer.parseInt(hexValue, 16);
         }
         
+        if (ctx.OCT() != null) {
+            String octValue = ctx.OCT().getText();
+            boolean negative = octValue.startsWith("-");
+            int value = Integer.parseInt(octValue.substring(negative ? 2 : 1), 8);
+            return negative ? -value : value;
+        }
+
         String numValue = ctx.NUM().getText();
         return Integer.parseInt(numValue);
     }
