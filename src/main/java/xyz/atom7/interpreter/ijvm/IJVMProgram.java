@@ -19,6 +19,25 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
 {
     private static final int MAX_OUTPUT_SUMMARY = 1_000_000;
 
+    /**
+     * Word address of the frame of main, the bottom of the stack
+     */
+    public static final int STACK_BASE = 0x8000;
+
+    /**
+     * Bytes before the code of a method: the parameter count and the local count, 2 bytes each
+     */
+    public static final int METHOD_HEADER_SIZE = 4;
+
+    /**
+     * Words of a method frame that are not parameters or locals: the link pointer, the saved PC and the saved LV
+     */
+    public static final int FRAME_LINK_WORDS = 3;
+
+    private static final Set<String> TWO_BYTE_INSTRUCTIONS = Set.of("BIPUSH", "ILOAD", "ISTORE");
+    private static final Set<String> THREE_BYTE_INSTRUCTIONS = Set.of(
+            "GOTO", "IFEQ", "IFLT", "IF_ICMPEQ", "IINC", "LDC_W", "INVOKEVIRTUAL");
+
     private final Map<String, Integer> constantPool;
     
     private final List<IJVMScope> scopes;
@@ -117,6 +136,11 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             scope.popStack(); // just pop the objRef
 
             IJVMScope newScopeInstance = new IJVMScope(targetScopeBlueprint);
+
+            // The OBJREF slot becomes the link pointer, the base of the new frame.
+            int lv = scope.getStackAddress(scope.getStack().size());
+            newScopeInstance.setLv(lv);
+            newScopeInstance.setStackBase(lv + FRAME_LINK_WORDS + newScopeInstance.getLocals().size());
             callStack.push(newScopeInstance);
 
             var iterator = newScopeInstance.getArguments().entrySet().iterator();
@@ -310,6 +334,8 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
             scopes.add(scope);
         }
 
+        assignAddresses();
+
         for (var scope : scopes)
         {
             debugln(scope.toString());
@@ -320,6 +346,49 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
 
         for (var elem : constantPool.entrySet())
             debugln("const: " + elem.getKey() + " >> " + elem.getValue());
+    }
+
+    /**
+     * Lays out the methods in the method area in source order and gives each instruction its byte address.
+     * main starts at address 0. Every other method starts with a header of METHOD_HEADER_SIZE bytes.
+     */
+    private void assignAddresses()
+    {
+        int address = 0;
+
+        for (int i = 0; i < scopes.size(); i++)
+        {
+            if (i > 0) {
+                address += METHOD_HEADER_SIZE;
+            }
+
+            for (IJVMInstruction instruction : scopes.get(i).getInstructions())
+            {
+                instruction.setAddress(address);
+                address += instructionSize(instruction.getOpCode());
+            }
+        }
+    }
+
+    /**
+     * Returns the size in bytes of an instruction: the opcode and its operands.
+     *
+     * @param opCode The operation code
+     * @return The size in bytes, 0 for a label
+     */
+    public static int instructionSize(String opCode)
+    {
+        if ("label".equals(opCode)) {
+            return 0;
+        }
+
+        String upper = opCode.toUpperCase();
+
+        if (TWO_BYTE_INSTRUCTIONS.contains(upper)) {
+            return 2;
+        }
+
+        return THREE_BYTE_INSTRUCTIONS.contains(upper) ? 3 : 1;
     }
 
     @Override
@@ -345,7 +414,11 @@ public class IJVMProgram<T extends IJVMInstruction> extends Interpreter<T>
     public void execute()
     {
         resume();
-        callStack.push(scopes.get(0));
+
+        IJVMScope mainScope = scopes.get(0);
+        mainScope.setLv(STACK_BASE);
+        mainScope.setStackBase(STACK_BASE + mainScope.getLocals().size());
+        callStack.push(mainScope);
         
         while (!callStack.isEmpty())
         {

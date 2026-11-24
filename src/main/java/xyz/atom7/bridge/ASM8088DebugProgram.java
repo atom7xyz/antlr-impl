@@ -2,7 +2,11 @@ package xyz.atom7.bridge;
 
 import xyz.atom7.interpreter.asm8088.ASM8088Instruction;
 import xyz.atom7.interpreter.asm8088.ASM8088Program;
+import xyz.atom7.interpreter.asm8088.ASM8088Program.CallFrame;
 import xyz.atom7.interpreter.asm8088.ASM8088Scope;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 8088 interpreter controlled by a DebugSession.
@@ -109,6 +113,8 @@ final class ASM8088DebugProgram extends ASM8088Program<ASM8088Instruction> imple
 
     /**
      * Writes the most recent stack words into the view, from the oldest to the newest.
+     * The words of a subroutine, from its return address down, go into a group named after its label.
+     * The group of a nested call is inside the group of its caller.
      *
      * @param view The view that receives the state
      * @param scope The scope of the program
@@ -118,10 +124,33 @@ final class ASM8088DebugProgram extends ASM8088Program<ASM8088Instruction> imple
         int sp = scope.getRegister16("SP");
         int entries = Math.min((STACK_TOP - sp) / 2, StateView.MAX_ENTRIES);
 
+        // A frame stays visible while its return address is on the stack.
+        List<CallFrame> frames = new ArrayList<>();
+
+        for (CallFrame frame : getCallFrames())
+        {
+            if (frame.getReturnSlot() >= sp) {
+                frames.add(frame);
+            }
+        }
+
+        int frameIndex = 0;
+        String path = null;
+
         for (int i = entries - 1; i >= 0; i--)
         {
             int offset = sp + i * 2;
-            view.value(STACK, String.format("0x%04X", offset), scope.readWord(scope.getStackAddress(offset)));
+
+            while (frameIndex < frames.size() && frames.get(frameIndex).getReturnSlot() >= offset)
+            {
+                String key = frames.get(frameIndex).getName() + "()";
+                path = path == null ? key : path + "." + key;
+                view.group(STACK, path);
+                frameIndex++;
+            }
+
+            String entry = StateView.address(offset);
+            view.value(STACK, path == null ? entry : path + "." + entry, scope.readWord(scope.getStackAddress(offset)));
         }
     }
 
@@ -143,12 +172,6 @@ final class ASM8088DebugProgram extends ASM8088Program<ASM8088Instruction> imple
                 entries++;
             }
         }
-    }
-
-    @Override
-    public int getProgramCounter()
-    {
-        return getScope().getPc();
     }
 
     @Override

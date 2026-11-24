@@ -3,6 +3,7 @@ package xyz.atom7.bridge;
 import lombok.SneakyThrows;
 import org.jetbrains.annotations.Nullable;
 import xyz.atom7.api.interpreter.Instruction;
+import xyz.atom7.api.interpreter.Interpreter;
 import xyz.atom7.api.parser.ParseResult;
 import xyz.atom7.api.parser.ParserHelper;
 import xyz.atom7.api.parser.error.ParserError;
@@ -38,6 +39,11 @@ public final class DebugSession
 
     private static final int MAX_OUTPUT = 8 * 1024;
     private static final int MAX_PENDING_INPUTS = 4096;
+
+    /**
+     * The largest character code that a program can read: IN and GETCHAR read one byte
+     */
+    public static final int MAX_INPUT_VALUE = Interpreter.MAX_INPUT_VALUE;
     private static final long FRAME_MILLIS = 16;
 
     private final String source;
@@ -46,7 +52,7 @@ public final class DebugSession
     private final StateView view = new StateView();
 
     private final StringBuilder output = new StringBuilder();
-    private final Deque<String> inputs = new ArrayDeque<>();
+    private final Deque<Character> inputs = new ArrayDeque<>();
 
     private volatile boolean stopRequested;
     private boolean gated;
@@ -143,18 +149,30 @@ public final class DebugSession
     }
 
     /**
-     * Queues a line of input for the program.
+     * Queues the characters of a line of input for the program, without a newline.
+     * The program reads one character per input instruction, so "12;" gives three inputs.
      *
      * @param line The line of input
-     * @return True if the session accepted the line, false otherwise
+     * @return True if the session accepted the line, false if the line is empty, the session ended,
+     *         the queue is full, or a character code is greater than MAX_INPUT_VALUE
      */
     public synchronized boolean feed(String line)
     {
-        if (state.isTerminal() || line.isEmpty() || inputs.size() >= MAX_PENDING_INPUTS) {
+        if (state.isTerminal() || line.isEmpty() || inputs.size() + line.length() > MAX_PENDING_INPUTS) {
             return false;
         }
 
-        inputs.add(line);
+        for (int i = 0; i < line.length(); i++)
+        {
+            if (line.charAt(i) > MAX_INPUT_VALUE) {
+                return false;
+            }
+        }
+
+        for (int i = 0; i < line.length(); i++) {
+            inputs.add(line.charAt(i));
+        }
+
         notifyAll();
         return true;
     }
@@ -217,9 +235,9 @@ public final class DebugSession
     }
 
     /**
-     * Waits for a line of input.
+     * Waits for a character of input.
      *
-     * @return The next line of input
+     * @return The next character of input, as a string of length 1
      */
     @SneakyThrows
     synchronized String awaitInput()
@@ -233,7 +251,7 @@ public final class DebugSession
 
         exitIfStopped();
         state = State.RUNNING;
-        return inputs.poll();
+        return String.valueOf(inputs.poll());
     }
 
     /**
@@ -371,8 +389,9 @@ public final class DebugSession
     private String describe(Throwable error)
     {
         String instruction = currentInstruction == null ? "none" : currentInstruction.toString();
-        return String.format("Runtime error at pc %d (%s): %s",
-                target.getProgramCounter(), instruction, error);
+        int address = currentInstruction == null ? -1 : currentInstruction.getAddress();
+        int line = currentInstruction == null ? -1 : currentInstruction.getLine();
+        return String.format("Runtime error at line %d, pc 0x%04X (%s): %s", line, Math.max(address, 0), instruction, error);
     }
 
     /**
@@ -391,14 +410,20 @@ public final class DebugSession
 
         StateDelta delta = StateDelta.EMPTY;
         int pc = -1;
+        int line = -1;
         String instruction = null;
         String scope = null;
 
         if (state != State.RUNNING && initialized) {
             target.collectState(view);
             delta = view.publish();
-            pc = target.getProgramCounter();
-            instruction = currentInstruction == null ? null : currentInstruction.toString();
+
+            if (currentInstruction != null) {
+                pc = currentInstruction.getAddress();
+                line = currentInstruction.getLine();
+                instruction = currentInstruction.toString();
+            }
+
             scope = target.getScopeName();
         }
 
@@ -406,6 +431,6 @@ public final class DebugSession
         warnings = null;
 
         return new StateUpdate(state.name(), state.isTerminal(), exitCode, message, pendingWarnings,
-                pc, instruction, scope, text, delta);
+                pc, line, instruction, scope, text, delta);
     }
 }

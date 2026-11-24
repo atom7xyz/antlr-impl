@@ -55,6 +55,12 @@ final class IJVMDebugProgram extends IJVMProgram<IJVMInstruction> implements Deb
         return new String[] { CONSTANTS, STACK };
     }
 
+    /**
+     * Writes the constants and the call frames into the view.
+     * Each frame contains its variables, then its operand stack by word address, then the frame of the method it called.
+     *
+     * @param view The view that receives the state
+     */
     @Override
     public void collectState(StateView view)
     {
@@ -62,30 +68,36 @@ final class IJVMDebugProgram extends IJVMProgram<IJVMInstruction> implements Deb
 
         var frames = getCallStack();
         int firstFrame = Math.max(0, frames.size() - StateView.MAX_FRAMES);
+        String framePath = null;
 
         for (int i = firstFrame; i < frames.size(); i++)
         {
             IJVMScope frame = frames.get(i);
-            String framePath = i + "_" + frame.getName();
+            String parentPath = framePath;
+            framePath = parentPath == null ? frameKey(frame) : parentPath + "." + frameKey(frame);
 
-            view.group(STACK, framePath);
-            view.group(STACK, framePath + ".locals");
-            frame.getLocals().forEach((name, value) -> view.value(STACK, framePath + ".locals." + name, value));
-            view.group(STACK, framePath + ".stack");
+            String path = framePath;
+            view.group(STACK, path);
+            frame.getLocals().forEach((name, value) -> view.value(STACK, path + "." + name, value));
 
             var stack = frame.getStack();
             int firstEntry = Math.max(0, stack.size() - StateView.MAX_ENTRIES);
 
             for (int j = firstEntry; j < stack.size(); j++) {
-                view.value(STACK, framePath + ".stack.[" + j + "]", stack.get(j));
+                view.value(STACK, path + "." + StateView.address(frame.getStackAddress(j)), stack.get(j));
             }
         }
     }
 
-    @Override
-    public int getProgramCounter()
+    /**
+     * Returns the key of a call frame. The parentheses keep it apart from a variable with the same name.
+     *
+     * @param frame The call frame
+     * @return The key of the frame
+     */
+    private static String frameKey(IJVMScope frame)
     {
-        return getScope() == null ? -1 : getScope().getPc();
+        return frame.getName() + "()";
     }
 
     @Override

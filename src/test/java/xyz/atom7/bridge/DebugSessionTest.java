@@ -42,6 +42,10 @@ public class DebugSessionTest
             if (state.equals(update.getState())) {
                 return update;
             }
+
+            if (update.isTerminal()) {
+                return fail("Session ended with " + update.getState() + ": " + update.getMessage());
+            }
         }
 
         return fail("Session did not reach state " + state);
@@ -91,13 +95,15 @@ public class DebugSessionTest
         session.start(true);
         StateUpdate update = awaitState(session, "PAUSED", output);
         assertEquals(0, update.getProgramCounter());
+        assertEquals(2, update.getLine());
 
         assertTrue(session.step(1));
         update = awaitState(session, "PAUSED", output);
-        assertEquals(1, update.getProgramCounter());
+        assertEquals(2, update.getProgramCounter());
+        assertEquals(3, update.getLine());
 
         List<String> keys = Arrays.asList(update.getDelta().getChangedKeys().split("\n"));
-        assertTrue(keys.contains("STACK:0_main.stack.[0]"));
+        assertTrue(keys.contains("STACK:main().0x8000"));
 
         assertTrue(session.step(10));
         awaitState(session, "FINISHED", output);
@@ -118,6 +124,142 @@ public class DebugSessionTest
         awaitState(session, "FINISHED", output);
 
         assertEquals("x\nPROGRAM OUTPUT IS:\nx \n", output.toString());
+    }
+
+    @Test
+    @DisplayName("Input is read one character per instruction without a newline")
+    void testInputCharacters() throws InterruptedException
+    {
+        String code = codeWritten(".main", "IN", "OUT", "IN", "OUT", "IN", "OUT", "HALT", ".end-main");
+
+        DebugSession session = DebugSession.create("ijvm", code);
+        StringBuilder output = new StringBuilder();
+
+        session.start(false);
+        awaitState(session, "WAITING_INPUT", output);
+        assertFalse(session.feed(""));
+        assertTrue(session.feed("ab"));
+        awaitState(session, "WAITING_INPUT", output);
+        assertTrue(session.feed(";"));
+        awaitState(session, "FINISHED", output);
+
+        assertEquals("ab;\nPROGRAM OUTPUT IS:\nab; \n", output.toString());
+    }
+
+    @Test
+    @DisplayName("Input rejects characters above the largest byte value")
+    void testInputLimit() throws InterruptedException
+    {
+        String code = codeWritten(".main", "IN", "OUT", "HALT", ".end-main");
+
+        DebugSession session = DebugSession.create("ijvm", code);
+
+        session.start(false);
+        awaitState(session, "WAITING_INPUT", new StringBuilder());
+
+        assertFalse(session.feed("\u20AC"));
+        assertTrue(session.feed("\u00FF"));
+        session.stop();
+    }
+
+    @Test
+    @DisplayName("A called IJVM method is shown inside its caller with stack addresses")
+    void testNestedFrames() throws InterruptedException
+    {
+        String code = codeWritten(
+                ".constant",
+                "objref 0",
+                ".end-constant",
+                ".main",
+                ".var",
+                "a",
+                ".end-var",
+                "LDC_W objref",
+                "BIPUSH 7",
+                "INVOKEVIRTUAL f",
+                "ISTORE a",
+                "HALT",
+                ".end-main",
+                ".method f(x)",
+                "LDC_W objref",
+                "ILOAD x",
+                "INVOKEVIRTUAL g",
+                "IRETURN",
+                ".end-method",
+                ".method g(y)",
+                ".var",
+                "z",
+                ".end-var",
+                "ILOAD y",
+                "IRETURN",
+                ".end-method"
+        );
+
+        DebugSession session = DebugSession.create("ijvm", code);
+        StringBuilder output = new StringBuilder();
+
+        session.start(true);
+        awaitState(session, "PAUSED", output);
+
+        // LDC_W, BIPUSH, INVOKEVIRTUAL f, LDC_W, ILOAD x, INVOKEVIRTUAL g
+        assertTrue(session.step(6));
+        StateUpdate update = awaitState(session, "PAUSED", output);
+        List<String> keys = Arrays.asList(update.getDelta().getChangedKeys().split("\n"));
+
+        // main: a at 0x8000, stack from 0x8001. f: LV 0x8001, x, then 3 link words, stack from 0x8005.
+        // g: LV 0x8005, y, z, then 3 link words, stack from 0x800A.
+        assertTrue(keys.contains("STACK:main().f()"));
+        assertTrue(keys.contains("STACK:main().f().x"));
+        assertTrue(keys.contains("STACK:main().f().g()"));
+        assertTrue(keys.contains("STACK:main().f().g().y"));
+        assertTrue(keys.contains("STACK:main().f().g().z"));
+        assertFalse(keys.stream().anyMatch(key -> key.contains("locals") || key.contains(".stack")));
+
+        // The first instruction of g follows main (11 bytes), the header of f, f (9 bytes) and the header of g.
+        assertEquals(11 + 4 + 9 + 4, update.getProgramCounter());
+
+        assertTrue(session.step(1));
+        update = awaitState(session, "PAUSED", output);
+        keys = Arrays.asList(update.getDelta().getChangedKeys().split("\n"));
+        assertTrue(keys.contains("STACK:main().f().g().0x800A"));
+
+        session.stop();
+    }
+
+    @Test
+    @DisplayName("8088 CALL pushes the byte address of the next instruction")
+    void test8088CallAddress() throws InterruptedException
+    {
+        String code = codeWritten(
+                ".SECT .TEXT",
+                "MOV AX, 1",
+                "CALL work",
+                "HLT",
+                "work:",
+                "PUSH AX",
+                "POP AX",
+                "RET"
+        );
+
+        DebugSession session = DebugSession.create("8088", code);
+        StringBuilder output = new StringBuilder();
+
+        session.start(true);
+        awaitState(session, "PAUSED", output);
+
+        // MOV AX, 1 is 3 bytes and CALL is 3 bytes, so the return address is 6.
+        assertTrue(session.step(2));
+        StateUpdate update = awaitState(session, "PAUSED", output);
+        assertEquals(7, update.getProgramCounter());
+        assertEquals(6, update.getLine());
+
+        List<String> keys = Arrays.asList(update.getDelta().getChangedKeys().split("\n"));
+        int index = keys.indexOf("STACK:work().0xFFFD");
+        assertTrue(index >= 0);
+        assertEquals(6, update.getDelta().getChangedValues()[index]);
+
+        assertTrue(session.step(10));
+        awaitState(session, "FINISHED", output);
     }
 
     @Test

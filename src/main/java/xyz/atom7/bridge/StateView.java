@@ -3,6 +3,7 @@ package xyz.atom7.bridge;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,12 +56,17 @@ final class StateView
     {
         List<String> changed = new ArrayList<>();
         List<Long> values = new ArrayList<>();
+        List<Integer> orders = new ArrayList<>();
+        Map<String, Integer> childCounts = new HashMap<>();
 
         for (Map.Entry<String, Long> entry : current.entrySet())
         {
+            int order = childCounts.merge(parentOf(entry.getKey()), 1, Integer::sum) - 1;
+
             if (!entry.getValue().equals(published.get(entry.getKey()))) {
                 changed.add(entry.getKey());
                 values.add(entry.getValue());
+                orders.add(order);
             }
         }
 
@@ -84,6 +90,7 @@ final class StateView
 
         byte[] kinds = new byte[values.size()];
         int[] numbers = new int[values.size()];
+        int[] positions = new int[values.size()];
 
         for (int i = 0; i < kinds.length; i++)
         {
@@ -92,9 +99,10 @@ final class StateView
             kinds[i] = value == GROUP ? StateDelta.KIND_GROUP :
                     value == UNSET ? StateDelta.KIND_UNSET : StateDelta.KIND_VALUE;
             numbers[i] = kinds[i] == StateDelta.KIND_VALUE ? (int) value : 0;
+            positions[i] = orders.get(i);
         }
 
-        return new StateDelta(String.join("\n", changed), kinds, numbers, String.join("\n", removed));
+        return new StateDelta(String.join("\n", changed), kinds, numbers, positions, String.join("\n", removed));
     }
 
     /**
@@ -113,6 +121,29 @@ final class StateView
 
         String parent = key.substring(0, separator);
         return published.containsKey(parent) && !current.containsKey(parent);
+    }
+
+    /**
+     * Returns the key of the parent of a node: the parent path, or the context for a top-level node.
+     *
+     * @param key The key of the node
+     * @return The key of the parent
+     */
+    private static String parentOf(String key)
+    {
+        int separator = key.lastIndexOf('.');
+        return separator < 0 ? key.substring(0, key.indexOf(':')) : key.substring(0, separator);
+    }
+
+    /**
+     * Formats a memory address as a node key.
+     *
+     * @param address The address
+     * @return The address in hexadecimal, for example 0x8000
+     */
+    static String address(int address)
+    {
+        return String.format("0x%04X", address);
     }
 
     private static String key(String context, String path)

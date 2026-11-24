@@ -31,10 +31,42 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      * Lists to store section content for processing
      */
     private final List<String> textSectionLines = new ArrayList<>();
+    private final List<Integer> textSectionLineNumbers = new ArrayList<>();
     private final List<String> dataSectionLines = new ArrayList<>();
     private final List<String> bssSectionLines = new ArrayList<>();
 
     private final List<ASM8088Instruction> instructions;
+
+    /**
+     * Instruction index of every byte address in the text segment
+     */
+    private final Map<Integer, Integer> addressIndexes = new HashMap<>();
+
+    /**
+     * Subroutines entered with CALL and not yet left with RET, from the oldest to the newest
+     */
+    private final Deque<CallFrame> callFrames = new ArrayDeque<>();
+
+    /**
+     * Size of the text segment in bytes
+     */
+    private int textSize;
+
+    /**
+     * A subroutine entered with CALL: its label and the stack offset of its return address.
+     */
+    @Getter
+    public static final class CallFrame
+    {
+        private final String name;
+        private final int returnSlot;
+
+        CallFrame(String name, int returnSlot)
+        {
+            this.name = name;
+            this.returnSlot = returnSlot;
+        }
+    }
 
     /**
      * Constructor for ASM8088Program
@@ -338,14 +370,15 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             String label = instr.getArgument();
             Integer targetIndex = labels.get(label);
             if (targetIndex != null) {
-                // Push return address (current PC + 1)
-                int returnAddr = scope.getPc() + 1;
+                // Push the byte address of the next instruction
+                int returnAddr = getAddressOf(scope.getPc() + 1);
                 int sp = scope.getRegister16("SP");
                 sp = (sp - 2) & 0xFFFF;
                 scope.setRegister16("SP", sp);
                 
                 int stackAddr = scope.getStackAddress(sp);
                 scope.writeWord(stackAddr, returnAddr);
+                callFrames.addLast(new CallFrame(label, sp));
                 
                 // Jump to target
                 scope.setPc(targetIndex - 1);
@@ -357,7 +390,17 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
 
         addInstruction("RET", (instr) -> {
             int returnAddr = scope.popStack();
-            scope.setPc(returnAddr - 1);
+            Integer returnIndex = returnAddr == textSize ? Integer.valueOf(instructions.size()) : addressIndexes.get(returnAddr);
+
+            if (returnIndex == null) {
+                throw new IllegalStateException(String.format("Invalid return address: 0x%04X", returnAddr));
+            }
+
+            if (!callFrames.isEmpty()) {
+                callFrames.removeLast();
+            }
+
+            scope.setPc(returnIndex - 1);
             debugln("RET (return to: " + returnAddr + ")");
         });
 
@@ -1043,6 +1086,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             switch (currentSection) {
                 case ".TEXT":
                     textSectionLines.add(lineText);
+                    textSectionLineNumbers.add(line.getStart().getLine());
                     break;
                 case ".DATA":
                     dataSectionLines.add(lineText);
@@ -1062,6 +1106,11 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         }
 
         processTextSection();
+        textSize = ASM8088Encoding.assignAddresses(instructions, labels);
+
+        for (int i = 0; i < instructions.size(); i++) {
+            addressIndexes.put(instructions.get(i).getAddress(), i);
+        }
         
         debugln("Program initialization completed:");
         debugln("- Instructions: " + instructions.size());
@@ -1131,8 +1180,9 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      */
     private void processTextSection()
     {
-        for (String line : textSectionLines) {
-            line = line.trim();
+        for (int lineIndex = 0; lineIndex < textSectionLines.size(); lineIndex++) {
+            String line = textSectionLines.get(lineIndex).trim();
+            int lineNumber = textSectionLineNumbers.get(lineIndex);
             if (line.isEmpty() || line.startsWith("//") || line.startsWith(";")) {
                 continue;
             }
@@ -1148,11 +1198,11 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
 
                 // Process instruction part if present
                 if (parts.length > 1 && !parts[1].trim().isEmpty()) {
-                    processInstructionLine(parts[1].trim());
+                    processInstructionLine(parts[1].trim(), lineNumber);
                 }
             } else {
                 // Regular instruction line
-                processInstructionLine(line);
+                processInstructionLine(line, lineNumber);
             }
         }
     }
@@ -1161,8 +1211,9 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
      * Processes a single instruction line and adds it to the instruction list
      * 
      * @param line The instruction line to process
+     * @param lineNumber The line of the instruction in the source file
      */
-    private void processInstructionLine(String line)
+    private void processInstructionLine(String line, int lineNumber)
     {
         line = line.trim();
         if (line.isEmpty()) return;
@@ -1190,6 +1241,7 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
             instruction = new ASM8088Instruction(opCode);
         }
 
+        instruction.setLine(lineNumber);
         instructions.add((T) instruction);
         debugln("Instruction " + instructions.size() + ": " + instruction);
     }
@@ -1697,6 +1749,21 @@ public class ASM8088Program<T extends ASM8088Instruction> extends Interpreter<T>
         }
         
         return sb.toString();
+    }
+
+    /**
+     * Returns the byte address of an instruction, or the end of the text segment after the last one.
+     *
+     * @param index The index of the instruction
+     * @return The byte address
+     */
+    public int getAddressOf(int index)
+    {
+        if (index < 0) {
+            return 0;
+        }
+
+        return index < instructions.size() ? instructions.get(index).getAddress() : textSize;
     }
 
     /**

@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -24,6 +26,16 @@ public abstract class Interpreter<T extends Instruction> implements Program
     protected int pc;
 
     protected final Scanner scanner;
+
+    /**
+     * The largest character code that a program can read: IN and GETCHAR read one byte
+     */
+    public static final int MAX_INPUT_VALUE = 0xFF;
+
+    /**
+     * Characters of the last input line that the program did not read yet
+     */
+    private final Deque<Character> pendingInput = new ArrayDeque<>();
     protected Semaphore running;
 
     public Interpreter()
@@ -76,22 +88,28 @@ public abstract class Interpreter<T extends Instruction> implements Program
     public abstract void interpret(T instruction);
 
     /**
-     * Reads the next non-empty line of input.
+     * Reads the next character of input. Each line gives its characters in order, without the newline.
+     * A line with a character code greater than MAX_INPUT_VALUE is skipped.
      *
-     * @return The line read, or null if no input is available
+     * @return The character as a string of length 1, or null if no input is available
      */
     protected String readInput()
     {
-        while (scanner.hasNextLine())
+        while (pendingInput.isEmpty() && scanner.hasNextLine())
         {
             String line = scanner.nextLine();
 
-            if (!line.isEmpty()) {
-                return line;
+            if (line.chars().anyMatch(c -> c > MAX_INPUT_VALUE)) {
+                System.err.println("Input not accepted: every character must have a code from 0 to " + MAX_INPUT_VALUE);
+                continue;
+            }
+
+            for (int i = 0; i < line.length(); i++) {
+                pendingInput.add(line.charAt(i));
             }
         }
 
-        return null;
+        return pendingInput.isEmpty() ? null : String.valueOf(pendingInput.poll());
     }
 
     /**

@@ -23,6 +23,11 @@ public final class StateUpdate
 
     private final int programCounter;
 
+    /**
+     * The source line of the current instruction, starting from 1, or -1 if unknown
+     */
+    private final int line;
+
     @Nullable
     private final String instruction;
 

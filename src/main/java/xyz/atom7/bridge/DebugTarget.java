@@ -32,13 +32,6 @@ interface DebugTarget
     void collectState(StateView view);
 
     /**
-     * Returns the program counter of the current scope.
-     *
-     * @return The program counter, or -1 if no scope is active
-     */
-    int getProgramCounter();
-
-    /**
      * Returns the name of the current scope.
      *
      * @return The scope name, or null if no scope is active
