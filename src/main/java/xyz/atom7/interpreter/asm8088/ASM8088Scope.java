@@ -46,6 +46,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     private int currentBssOffset = 0;
     
     private final Map<String, Integer> labelAddresses = new HashMap<>();
+    private final Map<String, Integer> dataLabelAddresses = new HashMap<>();
 
     /**
      * Constructor for ASM8088Scope
@@ -505,6 +506,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     private void storeLabelAddress(String label, int address) 
     {
         labelAddresses.put(label, address);
+        dataLabelAddresses.put(label, address);
     }
     
     /**
@@ -514,6 +516,16 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
      * @param label The label name to look up
      * @return The memory address of the label, or -1 if not found
      */
+    /**
+     * Returns the address of every label of the DATA and BSS segments, without the constants.
+     *
+     * @return A read-only map from the label to its address
+     */
+    public Map<String, Integer> getDataLabelAddresses()
+    {
+        return Collections.unmodifiableMap(dataLabelAddresses);
+    }
+
     public int getLabelAddress(String label)
     {
         return labelAddresses.getOrDefault(label, -1);

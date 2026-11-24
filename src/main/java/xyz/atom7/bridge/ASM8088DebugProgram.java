@@ -7,6 +7,7 @@ import xyz.atom7.interpreter.asm8088.ASM8088Scope;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 8088 interpreter controlled by a DebugSession.
@@ -30,6 +31,7 @@ final class ASM8088DebugProgram extends ASM8088Program<ASM8088Instruction> imple
 
     private static final int STACK_TOP = 0xFFFF;
     private static final int DATA_START = 0x1000;
+    private static final int BSS_START = 0x2000;
     private static final int BSS_END = 0x3000;
 
     private final DebugSession session;
@@ -156,6 +158,8 @@ final class ASM8088DebugProgram extends ASM8088Program<ASM8088Instruction> imple
 
     /**
      * Writes the non-zero bytes of the DATA and BSS segments into the view.
+     * A byte inside the space of a data label is in a group with the label and is named by its offset,
+     * for example "msg (0x1000)" with "msg+0" and "msg+1". A byte outside every label is named by its address.
      *
      * @param view The view that receives the state
      * @param scope The scope of the program
@@ -163,14 +167,63 @@ final class ASM8088DebugProgram extends ASM8088Program<ASM8088Instruction> imple
     private void collectMemory(StateView view, ASM8088Scope scope)
     {
         byte[] memory = scope.getMemory();
+        List<Map.Entry<String, Integer>> labels = new ArrayList<>();
+
+        for (Map.Entry<String, Integer> label : scope.getDataLabelAddresses().entrySet())
+        {
+            if (label.getValue() >= DATA_START && label.getValue() < BSS_END) {
+                labels.add(label);
+            }
+        }
+
+        labels.sort(Map.Entry.comparingByValue());
+
+        int dataEnd = scope.getDataSegmentStart() + scope.getCurrentDataOffset();
+        int bssEnd = scope.getBssSegmentStart() + scope.getCurrentBssOffset();
+
         int entries = 0;
+        int next = 0;
+        String group = null;
+        String name = null;
+        int start = 0;
+        int end = 0;
 
         for (int i = DATA_START; i < BSS_END && entries < StateView.MAX_MEMORY; i++)
         {
-            if (memory[i] != 0) {
-                view.value(MEMORY, String.format("0x%04X", i), memory[i] & 0xFF);
-                entries++;
+            while (next < labels.size() && labels.get(next).getValue() <= i)
+            {
+                // The space of a label ends at the next label or at the end of the data declared in its segment.
+                name = labels.get(next).getKey();
+                start = labels.get(next).getValue();
+                end = start < BSS_START ? dataEnd : bssEnd;
+
+                if (next + 1 < labels.size()) {
+                    end = Math.min(end, labels.get(next + 1).getValue());
+                }
+
+                group = name + " (" + StateView.address(start) + ")";
+                view.group(MEMORY, group);
+                next++;
             }
+
+            if (group != null && i >= end) {
+                group = null;
+            }
+
+            if (memory[i] == 0) {
+                continue;
+            }
+
+            int value = memory[i] & 0xFF;
+
+            if (group == null) {
+                view.value(MEMORY, StateView.address(i), value);
+            }
+            else {
+                view.value(MEMORY, group + "." + name + "+" + (i - start), value);
+            }
+
+            entries++;
         }
     }
 

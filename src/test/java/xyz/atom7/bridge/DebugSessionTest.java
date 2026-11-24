@@ -263,6 +263,45 @@ public class DebugSessionTest
     }
 
     @Test
+    @DisplayName("8088 memory bytes are grouped under their data labels")
+    void test8088MemoryLabels() throws InterruptedException
+    {
+        String code = codeWritten(
+                ".SECT .TEXT",
+                "MOV AX, 0x4142",
+                "MOV [buf], AX",
+                "HLT",
+                ".SECT .DATA",
+                "msg: .ASCII \"Hi\\0\"",
+                ".SECT .BSS",
+                "buf: .SPACE 4"
+        );
+
+        DebugSession session = DebugSession.create("8088", code);
+        StringBuilder output = new StringBuilder();
+
+        session.start(true);
+        StateUpdate update = awaitState(session, "PAUSED", output);
+
+        // The DATA bytes are in the view before the first instruction; the zero terminator is not shown.
+        List<String> keys = Arrays.asList(update.getDelta().getChangedKeys().split("\n"));
+        assertTrue(keys.contains("MEMORY:msg (0x1000)"));
+        assertTrue(keys.contains("MEMORY:buf (0x2000)"));
+        assertEquals(0x48, update.getDelta().getChangedValues()[keys.indexOf("MEMORY:msg (0x1000).msg+0")]);
+        assertEquals(0x69, update.getDelta().getChangedValues()[keys.indexOf("MEMORY:msg (0x1000).msg+1")]);
+        assertFalse(keys.contains("MEMORY:msg (0x1000).msg+2"));
+
+        assertTrue(session.step(2));
+        update = awaitState(session, "PAUSED", output);
+        keys = Arrays.asList(update.getDelta().getChangedKeys().split("\n"));
+        assertEquals(0x42, update.getDelta().getChangedValues()[keys.indexOf("MEMORY:buf (0x2000).buf+0")]);
+        assertEquals(0x41, update.getDelta().getChangedValues()[keys.indexOf("MEMORY:buf (0x2000).buf+1")]);
+
+        assertTrue(session.step(10));
+        awaitState(session, "FINISHED", output);
+    }
+
+    @Test
     @DisplayName("Stop ends an infinite loop")
     void testStop() throws InterruptedException
     {
