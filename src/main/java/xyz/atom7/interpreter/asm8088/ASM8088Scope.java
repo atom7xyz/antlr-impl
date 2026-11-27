@@ -32,6 +32,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     private static final int BP_OFFSET = 12;
     private static final int SP_OFFSET = 14;
     
+    private final int CS = 0;
     private int DS = 0, ES = 0, SS = 0;
     
     private boolean zeroFlag = false;
@@ -46,6 +47,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     private int currentBssOffset = 0;
     
     private final Map<String, Integer> labelAddresses = new HashMap<>();
+    private final Map<String, Integer> dataLabelAddresses = new HashMap<>();
 
     /**
      * Constructor for ASM8088Scope
@@ -172,6 +174,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     public int getSegmentRegister(String reg) 
     {
         switch (reg) {
+            case "CS": return CS;
             case "DS": return DS;
             case "ES": return ES;
             case "SS": return SS;
@@ -191,6 +194,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     {
         value &= 0xFFFF;
         switch (reg) {
+            case "CS": throw new IllegalArgumentException("CS cannot be the destination of MOV or POP");
             case "DS": DS = value; break;
             case "ES": ES = value; break;
             case "SS": SS = value; break;
@@ -355,6 +359,13 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
             else if (line.contains(".ASCII")) {
                 processDataAscii(line);
             } 
+            else if (line.contains(".SPACE")) {
+                // .SPACE in .DATA reserves zero bytes in the data segment.
+                String[] parts = line.split(":");
+                int count = Integer.parseInt(line.substring(line.indexOf(".SPACE") + 6).trim());
+                storeLabelAddress(parts[0].trim(), dataSegmentStart + currentDataOffset);
+                currentDataOffset += count;
+            }
             else {
                 debugln("  -> Unknown data directive: " + line);
             }
@@ -505,6 +516,7 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
     private void storeLabelAddress(String label, int address) 
     {
         labelAddresses.put(label, address);
+        dataLabelAddresses.put(label, address);
     }
     
     /**
@@ -514,6 +526,16 @@ public class ASM8088Scope extends Scope<Object, ASM8088Instruction>
      * @param label The label name to look up
      * @return The memory address of the label, or -1 if not found
      */
+    /**
+     * Returns the address of every label of the DATA and BSS segments, without the constants.
+     *
+     * @return A read-only map from the label to its address
+     */
+    public Map<String, Integer> getDataLabelAddresses()
+    {
+        return Collections.unmodifiableMap(dataLabelAddresses);
+    }
+
     public int getLabelAddress(String label)
     {
         return labelAddresses.getOrDefault(label, -1);

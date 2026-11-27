@@ -4,7 +4,7 @@
 // x = 1
 // y = 2
 // z = 3
-// output = 0
+// output = 19
 //
 .constant
     OBJREF 0x40

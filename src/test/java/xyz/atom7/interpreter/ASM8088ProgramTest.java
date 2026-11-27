@@ -1384,4 +1384,105 @@ public class ASM8088ProgramTest
             this.status = status;
         }
     }
-} 
+
+    @Nested
+    @DisplayName("Fixes from the help page fact-check")
+    class FactCheckFixesTest
+    {
+        private int run(String register, String... lines)
+        {
+            program.init(codeWritten(lines));
+            program.execute();
+            return program.getScope().getRegister16(register);
+        }
+
+        @Test
+        @DisplayName("JG, JL and JLE use the overflow flag")
+        void testSignedJumps()
+        {
+            // 0x7FFF - (-1) overflows: SF = 1 and OF = 1, so 0x7FFF is greater than -1.
+            assertEquals(0, run("BX", ".SECT .TEXT", "MOV BX, 0", "MOV AX, 0x7FFF", "CMP AX, -1", "JG big", "MOV BX, 1", "big:", "NOP"));
+            assertEquals(5, run("CX", ".SECT .TEXT", "MOV CX, 0", "MOV AX, 0x7FFF", "CMP AX, -1", "JL small", "MOV CX, 5", "small:", "NOP"));
+            assertEquals(5, run("CX", ".SECT .TEXT", "MOV CX, 0", "MOV AX, 0x7FFF", "CMP AX, -1", "JLE small", "MOV CX, 5", "small:", "NOP"));
+        }
+
+        @Test
+        @DisplayName("Register names in lower case")
+        void testLowerCaseRegisters()
+        {
+            assertEquals(7, run("AX", ".SECT .TEXT", "mov ax, 5", "add ax, 2"));
+            assertEquals(3, run("BX", ".SECT .TEXT", "mov bl, 3", "mov bh, 0"));
+        }
+
+        @Test
+        @DisplayName("A byte store writes one byte")
+        void testByteStore()
+        {
+            program.init(codeWritten(
+                    ".SECT .TEXT", "MOV AL, 9", "MOVB [a], AL", "MOV [c], AL",
+                    ".SECT .DATA", "a: .BYTE 1", "b: .BYTE 2", "c: .BYTE 3", "d: .BYTE 4"));
+            program.execute();
+
+            var scope = program.getScope();
+            assertEquals(9, scope.readByte(scope.getLabelAddress("a")));
+            assertEquals(2, scope.readByte(scope.getLabelAddress("b")));
+            assertEquals(9, scope.readByte(scope.getLabelAddress("c")));
+            assertEquals(4, scope.readByte(scope.getLabelAddress("d")));
+        }
+
+        @Test
+        @DisplayName("Negative offsets from BP and from labels")
+        void testNegativeOffsets()
+        {
+            assertEquals(7, run("AX", ".SECT .TEXT", "MOV BP, SP", "PUSH 7", "MOV AX, [BP-2]"));
+            assertEquals(7, run("AX", ".SECT .TEXT", "MOV BP, SP", "PUSH 7", "MOV AX, [BP - 2]"));
+            assertEquals(2, run("AX", ".SECT .TEXT", "MOV AX, 0", "MOVB AL, [b-1]", ".SECT .DATA", "a: .BYTE 2", "b: .BYTE 5"));
+        }
+
+        @Test
+        @DisplayName("NOP, (BX) and CS")
+        void testNopParenthesesAndCs()
+        {
+            assertEquals(5, run("AX", ".SECT .TEXT", "NOP", "MOV AX, 5", "nop"));
+            assertEquals(6, run("AX", ".SECT .TEXT", "MOV BX, v", "MOV AX, (BX)", ".SECT .DATA", "v: .BYTE 6, 0"));
+            assertEquals(0, run("AX", ".SECT .TEXT", "MOV AX, 9", "MOV AX, CS"));
+        }
+
+        @Test
+        @DisplayName("Octal numbers")
+        void testOctal()
+        {
+            assertEquals(15, run("AX", ".SECT .TEXT", "MOV AX, 017"));
+            assertEquals(8, run("AX", "EIGHT = 010", ".SECT .TEXT", "MOV AX, EIGHT"));
+            assertEquals(-8, (short) run("AX", ".SECT .TEXT", "MOV AX, -010"));
+            assertEquals(9, run("AX", ".SECT .TEXT", "MOV AX, 09"));
+
+            program.init(codeWritten(".SECT .TEXT", "NOP", ".SECT .DATA", "v: .BYTE 010, 0x10, 10"));
+            program.execute();
+            int v = program.getScope().getLabelAddress("v");
+            assertEquals(8, program.getScope().readByte(v));
+            assertEquals(16, program.getScope().readByte(v + 1));
+            assertEquals(10, program.getScope().readByte(v + 2));
+        }
+
+        @Test
+        @DisplayName("Flags of INC, DEC and the byte instructions")
+        void testFlags()
+        {
+            // CMP 0, 1 sets CF; INC and DEC keep it.
+            run("AX", ".SECT .TEXT", "MOV AX, 0", "CMP AX, 1", "INC AX", "DEC AX");
+            assertTrue(program.getScope().isCarryFlag());
+
+            // 0x7FFF + 1 overflows.
+            run("AX", ".SECT .TEXT", "MOV AX, 0x7FFF", "INC AX");
+            assertTrue(program.getScope().isOverflowFlag());
+
+            // 128 - 1 overflows in 8 bits.
+            run("AX", ".SECT .TEXT", "MOV AL, 128", "CMPB AL, 1");
+            assertTrue(program.getScope().isOverflowFlag());
+
+            run("AX", ".SECT .TEXT", "MOV AL, 127", "ADDB AL, 1");
+            assertTrue(program.getScope().isOverflowFlag());
+        }
+    }
+}

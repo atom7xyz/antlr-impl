@@ -17,6 +17,16 @@ public class IJVMScope extends Scope<IJVMParser.StatementContext, IJVMInstructio
     private int leftAtInstruction = -1, pc = -1; // inner program counter of the scope
     private int returnPc = -1;
 
+    /**
+     * Word address of the frame base (LV): the link pointer of a method, or the first local of main
+     */
+    private int lv = -1;
+
+    /**
+     * Word address of the first operand stack entry of the frame
+     */
+    private int stackBase = -1;
+
     private final LinkedHashMap<String, Integer> locals;
     private final LinkedHashMap<String, Integer> arguments;
 
@@ -58,8 +68,11 @@ public class IJVMScope extends Scope<IJVMParser.StatementContext, IJVMInstructio
 
         String opCode = statementCtx.getStart().getText();
 
+        int line = statementCtx.getStart().getLine();
+
         if (statementCtx.labelDecl() != null) {
             instruction = new IJVMInstruction("label", opCode);
+            instruction.setLine(line);
             instructions.add(instruction);
             return;
         }
@@ -89,7 +102,22 @@ public class IJVMScope extends Scope<IJVMParser.StatementContext, IJVMInstructio
             instruction = new IJVMInstruction(opCode, instructionCtx.constantArgInstr().ID());
         }
 
+        if (instruction != null) {
+            instruction.setLine(line);
+        }
+
         instructions.add(instruction);
+    }
+
+    /**
+     * Returns the word address of an operand stack entry.
+     *
+     * @param index The index of the entry, 0 for the bottom of the stack
+     * @return The word address
+     */
+    public int getStackAddress(int index)
+    {
+        return stackBase + index;
     }
 
     /**
